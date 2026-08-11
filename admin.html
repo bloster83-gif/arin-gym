@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아린 헬스장 관리자 모드</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif;
+    min-height: 100vh; background: #f4f5f8;
+  }
+
+  /* ===== 잠금(비밀번호) 화면 ===== */
+  #lock {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #0b0e14; overflow: hidden;
+  }
+  #lock.hide { display: none; }
+  #lockBg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #lock .scrim {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 28%, rgba(0,0,0,.15) 30%, rgba(0,0,0,.72) 80%);
+  }
+  #lock .inner { position: relative; z-index: 2; text-align: center; }
+  .lock-title { font-size: 34px; font-weight: 900; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,.8); }
+  .lock-badge {
+    display: inline-block; margin: 10px 0 22px; padding: 6px 16px; border-radius: 999px;
+    font-size: 14px; font-weight: 900; color: #fff;
+    background: linear-gradient(90deg, #ff004d, #ff7a00, #ffdd00, #24d05a, #00b8ff, #4b3bff, #b400ff);
+  }
+
+  .pw-box {
+    background: rgba(10,12,18,.6); backdrop-filter: blur(12px);
+    border: 2px solid rgba(255,255,255,.32); border-radius: 22px;
+    padding: 24px; width: 330px; max-width: 92vw; margin: 0 auto;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+  .dots { display: flex; justify-content: center; gap: 12px; margin-bottom: 18px; }
+  .dot { width: 16px; height: 16px; border-radius: 50%; border: 2px solid #fff; transition: all .15s; }
+  .dot.on { background: #fff; transform: scale(1.15); }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .key {
+    height: 54px; font-size: 21px; font-weight: 800; color: #fff; font-family: inherit;
+    background: rgba(255,255,255,.2); border: none; border-radius: 14px; cursor: pointer;
+    transition: transform .08s, background .15s;
+  }
+  .key:active { transform: scale(.93); background: rgba(255,255,255,.45); }
+  .key.small { font-size: 14px; }
+  .key.at { background: rgba(255,215,0,.32); }
+  .msg { color: #fff; font-weight: 800; height: 22px; margin-top: 14px; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+  .lock-link {
+    position: relative; z-index: 2; margin-top: 18px;
+    color: rgba(255,255,255,.75); font-size: 13px; text-decoration: underline; cursor: pointer;
+  }
+  .shake { animation: shake .4s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); } 20% { transform: translateX(-12px); }
+    40% { transform: translateX(12px); } 60% { transform: translateX(-8px); } 80% { transform: translateX(8px); }
+  }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* ===== 관리자 화면 ===== */
+  .topbar {
+    background: linear-gradient(90deg, #ff004d, #ff7a00, #ffdd00, #24d05a, #00b8ff, #4b3bff, #b400ff);
+    color: #fff; padding: 16px 18px;
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.2);
+  }
+  .topbar h1 { font-size: 19px; font-weight: 900; }
+  .mode-tag { font-size: 12px; background: rgba(0,0,0,.3); padding: 4px 10px; border-radius: 999px; margin-left: 8px; }
+  .top-btns { display: flex; gap: 8px; }
+  .top-btn {
+    border: none; border-radius: 999px; padding: 9px 14px; cursor: pointer;
+    background: rgba(0,0,0,.3); color: #fff; font-size: 13px; font-weight: 800; font-family: inherit;
+  }
+  .top-btn:hover { background: rgba(0,0,0,.5); }
+
+  .wrap { max-width: 620px; margin: 0 auto; padding: 18px 16px 60px; }
+  .card { background: #fff; border-radius: 18px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,.07); margin-bottom: 16px; }
+  .card h2 { font-size: 16px; margin-bottom: 14px; color: #333; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: center; }
+  .stat { background: #f7f8fc; border-radius: 14px; padding: 14px 8px; }
+  .stat .label { font-size: 12px; color: #888; margin-bottom: 6px; }
+  .stat .value { font-size: 26px; font-weight: 900; color: #4b3bff; }
+  .stat .value.money { color: #24a05a; }
+
+  .banner {
+    margin-top: 14px; padding: 14px; border-radius: 14px; text-align: center;
+    font-weight: 800; font-size: 16px; display: none;
+    background: linear-gradient(90deg, #fff1cc, #ffe0f0); color: #b8005d;
+  }
+  .banner.show { display: block; animation: pop .35s; }
+
+  /* 회원 카드 */
+  .mcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; }
+  .mcard {
+    border: 2px solid #e8eaf2; border-radius: 18px; padding: 14px;
+    background: #fff; cursor: pointer; text-align: left; font-family: inherit; transition: all .15s;
+  }
+  .mcard:hover { border-color: #c8ccdd; }
+  .mcard.on { border-color: #4b3bff; background: #f4f2ff; box-shadow: 0 6px 16px rgba(75,59,255,.16); }
+  .mcard .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .mcard .emoji { font-size: 30px; line-height: 1; }
+  .mcard .pwno { font-size: 17px; font-weight: 900; color: #4b3bff; }
+  .mcard .row { font-size: 13px; color: #666; margin-top: 4px; }
+  .mcard .row b { color: #222; font-weight: 800; }
+  .mcard .money { margin-top: 10px; font-size: 16px; font-weight: 900; color: #24a05a; }
+  .mcard .money small { color: #999; font-weight: 800; font-size: 12px; }
+
+  .legend { margin-top: 12px; font-size: 13px; color: #777; text-align: center; line-height: 1.9; }
+  .legend b { color: #333; }
+
+  /* 카드 두 번 누르면 크게 보이는 창 */
+  #big {
+    position: fixed; inset: 0; z-index: 35; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.65); padding: 16px;
+  }
+  #big.show { display: flex; }
+  .big-box {
+    background: #fff; border-radius: 26px; padding: 26px 22px;
+    width: 460px; max-width: 94vw; max-height: 92vh; overflow-y: auto;
+    text-align: center; animation: pop .25s;
+  }
+  .big-emoji { font-size: 96px; line-height: 1.1; }
+  .big-name { font-size: 34px; font-weight: 900; color: #222; margin-top: 4px; }
+  .big-pw { display: inline-block; margin: 8px 0 18px; padding: 5px 14px; border-radius: 999px;
+    background: #f1efff; color: #4b3bff; font-weight: 900; font-size: 15px; }
+  .big-rows { text-align: left; margin: 0 auto 18px; max-width: 340px; }
+  .big-row {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 11px 14px; border-radius: 12px; background: #f7f8fc; margin-bottom: 8px;
+    font-size: 15px; color: #666;
+  }
+  .big-row b { color: #222; font-size: 16px; }
+  .big-row.money b { color: #24a05a; font-size: 19px; }
+  .big-close { width: 100%; padding: 15px 0; font-size: 17px; }
+
+  /* ===== 사물함 ===== */
+  #lockers {
+    position: fixed; inset: 0; z-index: 33; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.65); padding: 16px;
+  }
+  #lockers.show { display: flex; }
+  .lockers-box {
+    background: #fff; border-radius: 24px; padding: 22px;
+    width: 620px; max-width: 96vw; max-height: 92vh; overflow-y: auto; animation: pop .25s;
+  }
+  .lockers-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .lockers-head b { font-size: 20px; color: #222; }
+  .lockers-head button {
+    width: 36px; height: 36px; border-radius: 50%; border: none; cursor: pointer;
+    background: #f0f1f6; font-size: 17px; font-weight: 900; color: #666;
+  }
+  .locker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(88px, 1fr)); gap: 10px; margin: 14px 0; }
+  .locker {
+    aspect-ratio: 1; border-radius: 16px; border: 2px solid #dfe3ef; background: #f7f8fc;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; font-family: inherit; padding: 4px; transition: all .15s;
+  }
+  .locker:hover { border-color: #b9c0d8; }
+  .locker .L { font-size: 28px; font-weight: 900; color: #9aa2bd; line-height: 1; }
+  .locker .nm {
+    font-size: 12px; font-weight: 800; color: #999; margin-top: 6px;
+    max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .locker.used { background: linear-gradient(135deg, #eef6ff, #f4efff); border-color: #4b3bff; }
+  .locker.used .L { color: #4b3bff; }
+  .locker.used .nm { color: #222; }
+
+  #lockerEdit {
+    position: fixed; inset: 0; z-index: 36; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.6); padding: 16px;
+  }
+  #lockerEdit.show { display: flex; }
+  #lockerEdit .confirm-box { animation: pop .25s; }
+  #lockerEdit input { margin-bottom: 10px; }
+  .locker-big { font-size: 54px; font-weight: 900; color: #4b3bff; line-height: 1; margin-bottom: 6px; }
+
+  .money-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  input[type=number], input[type=text] {
+    flex: 1; width: 100%; padding: 12px 14px; font-size: 16px; font-family: inherit;
+    border: 2px solid #e3e5ee; border-radius: 12px; outline: none;
+  }
+  input:focus { border-color: #4b3bff; }
+  #pwInput { letter-spacing: 6px; font-weight: 800; }
+  .hint { font-size: 12px; color: #999; margin: -4px 0 10px 4px; }
+
+  .btn {
+    padding: 12px 16px; border: none; border-radius: 12px; font-family: inherit;
+    font-size: 15px; font-weight: 800; color: #fff; cursor: pointer; background: #4b3bff;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.green { background: #24a05a; }
+  .btn.gray { background: #8b90a0; }
+  .btn.red { background: #ff3b5c; }
+  .quick { display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick .btn { flex: 1; font-size: 14px; padding: 10px 6px; background: #eef0ff; color: #4b3bff; }
+
+  /* 타이머 */
+  .timer-display {
+    text-align: center; font-size: 58px; font-weight: 900; letter-spacing: 2px;
+    color: #4b3bff; margin: 4px 0 16px; font-variant-numeric: tabular-nums;
+  }
+  .timer-display.run { color: #24a05a; }
+  .timer-display.done { color: #ff3b5c; animation: shake .4s 3; }
+  .timer-bar { height: 10px; border-radius: 999px; background: #eef0f6; overflow: hidden; margin-bottom: 16px; }
+  .timer-bar > div {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, #24d05a, #00b8ff, #4b3bff); transition: width .3s linear;
+  }
+
+  /* 달력 */
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-head .m { font-size: 17px; font-weight: 900; color: #333; }
+  .cal-nav { border: none; background: #f0f1f6; width: 34px; height: 34px; border-radius: 10px; font-size: 16px; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .dow { text-align: center; font-size: 12px; font-weight: 800; color: #999; padding-bottom: 4px; }
+  .dow:first-child { color: #ff3b5c; }
+  .dow:last-child { color: #4b7bff; }
+  .day {
+    aspect-ratio: 1; border-radius: 12px; background: #f7f8fc;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 14px; color: #444;
+  }
+  .day.empty { background: transparent; }
+  .day.today { outline: 2px solid #4b3bff; font-weight: 900; }
+  .day.att { background: linear-gradient(135deg, #ff7a00, #ff004d); color: #fff; font-weight: 900; }
+  .day .mark { font-size: 11px; line-height: 1; margin-top: 2px; }
+
+  /* 확인 창 */
+  #confirm {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.6); padding: 16px;
+  }
+  #confirm.show { display: flex; }
+  .confirm-box {
+    background: #fff; border-radius: 22px; padding: 28px 22px 22px;
+    width: 380px; max-width: 94vw; text-align: center; animation: pop .25s;
+  }
+  .confirm-box .q { font-size: 24px; font-weight: 900; color: #222; margin-bottom: 8px; }
+  .confirm-box .d { font-size: 14px; color: #777; line-height: 1.6; margin-bottom: 20px; }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btns .btn { flex: 1; padding: 15px 0; font-size: 17px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(20px);
+    background: rgba(20,22,30,.92); color: #fff; font-weight: 800;
+    padding: 14px 22px; border-radius: 999px; z-index: 40;
+    opacity: 0; pointer-events: none; transition: all .25s; max-width: 90vw; text-align: center;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .link-card { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+  .link-card .t { font-size: 14px; color: #666; }
+</style>
+</head>
+<body>
+
+<!-- ================= 잠금 화면 (비밀번호 0630@@) ================= -->
+<div id="lock">
+  <svg id="lockBg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#232a3b"/><stop offset="60%" stop-color="#161b27"/><stop offset="100%" stop-color="#0f131c"/>
+      </linearGradient>
+      <linearGradient id="rb" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#ff2f6e"/><stop offset="25%" stop-color="#ff9f1c"/>
+        <stop offset="50%" stop-color="#ffe74c"/><stop offset="72%" stop-color="#2ee6a8"/>
+        <stop offset="100%" stop-color="#5b8cff"/>
+      </linearGradient>
+    </defs>
+    <rect width="1200" height="800" fill="url(#wall)"/>
+    <g opacity=".35" fill="#4b5678">
+      <rect x="70" y="330" width="18" height="290"/><rect x="250" y="330" width="18" height="290"/>
+      <rect x="70" y="330" width="198" height="16"/>
+      <circle cx="120" cy="475" r="46" fill="#2b3145"/><circle cx="218" cy="475" r="46" fill="#2b3145"/>
+      <rect x="940" y="580" width="210" height="34" rx="10"/>
+      <rect x="1090" y="450" width="14" height="130"/>
+      <rect x="1036" y="430" width="120" height="46" rx="8" fill="#2b3145"/>
+    </g>
+    <rect x="0" y="640" width="1200" height="6" fill="url(#rb)" opacity=".5"/>
+  </svg>
+  <div class="scrim"></div>
+
+  <div class="inner">
+    <div class="lock-title">💪 아린 헬스장</div>
+    <div class="lock-badge">🔐 관리자 모드</div>
+
+    <div class="pw-box" id="pwBox">
+      <div class="dots" id="dots"></div>
+      <div class="keypad">
+        <button class="key">1</button><button class="key">2</button><button class="key">3</button>
+        <button class="key">4</button><button class="key">5</button><button class="key">6</button>
+        <button class="key">7</button><button class="key">8</button><button class="key">9</button>
+        <button class="key small" id="clearKey">전체지움</button>
+        <button class="key">0</button>
+        <button class="key at">@</button>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:10px">
+        <button class="key small" id="backKey" style="flex:1">← 지우기</button>
+        <button class="key small" id="okKey" style="flex:1">확인</button>
+      </div>
+    </div>
+    <div class="msg" id="lockMsg"></div>
+    <div class="lock-link" id="toWait">← 대기 화면(출석) 사이트로 가기</div>
+  </div>
+</div>
+
+<!-- ================= 관리자 화면 ================= -->
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div><h1 style="display:inline">💪 아린 헬스장</h1><span class="mode-tag">관리자 모드</span></div>
+    <div class="top-btns">
+      <button class="top-btn" id="waitBtn">🖥 대기 화면 열기</button>
+      <button class="top-btn" id="lockBtn">🔒 잠금</button>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="card link-card">
+      <div class="t">이 사이트는 <b>대기 화면(출석 사이트)</b>과 같은 자료를 씁니다. 여기서 넣은 돈이 대기 화면에 바로 반영됩니다.</div>
+      <button class="btn" id="waitBtn2">대기 화면 열기 ↗</button>
+    </div>
+
+    <div class="card">
+      <h2>👥 회원 (누르면 그 회원만 보기 · 충전 칸에 번호도 자동으로 들어갑니다)</h2>
+      <div class="mcards" id="memberCards"></div>
+      <div class="banner" id="banner">회원님이 운동을 더할 수 있습니다</div>
+    </div>
+
+    <div class="card">
+      <h2>💰 금액 넣기 (1회 출석 = 1,000원)</h2>
+      <div class="money-row">
+        <input type="text" id="pwInput" maxlength="4" inputmode="numeric" placeholder="회원 비밀번호 4자리">
+      </div>
+      <div class="hint">비밀번호를 쓴 회원에게만 돈이 들어갑니다 (0220 / 0304 / 0511)</div>
+      <div class="money-row">
+        <input type="number" id="moneyInput" placeholder="넣을 금액 (예: 20000)" step="1000" min="0">
+        <button class="btn green" id="addBtn">충전</button>
+      </div>
+      <div class="quick">
+        <button class="btn q-amt" data-amt="5000">5,000</button>
+        <button class="btn q-amt" data-amt="10000">10,000</button>
+        <button class="btn q-amt" data-amt="20000">20,000</button>
+        <button class="btn q-amt" data-amt="30000">30,000</button>
+      </div>
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button class="btn gray" id="setBtn" style="flex:1">입력한 금액으로 설정</button>
+        <button class="btn red" id="resetBtn" style="flex:1">전체 초기화</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🗄 사물함</h2>
+      <div class="hint" style="margin:0 0 12px 2px">A부터 U까지 21칸 · 들어가서 네모를 <b>두 번 누르면</b> 이름을 저장할 수 있습니다.</div>
+      <button class="btn" id="openLockers" style="width:100%">사물함 들어가기 →</button>
+    </div>
+
+    <div class="card">
+      <h2>⏱️ 운동 타이머</h2>
+      <div class="timer-display" id="timerView">00:00</div>
+      <div class="timer-bar"><div id="timerBar"></div></div>
+      <div class="quick" style="margin-bottom:10px">
+        <button class="btn t-preset" data-sec="60">1분</button>
+        <button class="btn t-preset" data-sec="180">3분</button>
+        <button class="btn t-preset" data-sec="300">5분</button>
+        <button class="btn t-preset" data-sec="600">10분</button>
+        <button class="btn t-preset" data-sec="1800">30분</button>
+      </div>
+      <div class="money-row">
+        <input type="number" id="minInput" placeholder="분" min="0" max="180">
+        <input type="number" id="secInput" placeholder="초" min="0" max="59">
+        <button class="btn" id="setTimeBtn">맞추기</button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn green" id="startBtn" style="flex:1">▶ 시작</button>
+        <button class="btn gray" id="pauseBtn" style="flex:1">⏸ 일시정지</button>
+        <button class="btn red" id="stopBtn" style="flex:1">⏹ 초기화</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cal-head">
+        <button class="cal-nav" id="prevM">‹</button>
+        <div class="m" id="calTitle"></div>
+        <button class="cal-nav" id="nextM">›</button>
+      </div>
+      <div class="grid" id="calGrid"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 사물함 (A ~ U) -->
+<div id="lockers">
+  <div class="lockers-box">
+    <div class="lockers-head">
+      <b>🗄 사물함 A ~ U</b>
+      <button id="lockersClose">✕</button>
+    </div>
+    <div class="hint" style="margin:0 0 4px 2px">네모를 <b>두 번 누르면</b> 이름을 넣거나 지울 수 있어요 (한 번 누르면 누구 것인지 알려 줍니다)</div>
+    <div class="locker-grid" id="lockerGrid"></div>
+    <div class="hint" id="lockerCount" style="text-align:center; margin:0"></div>
+  </div>
+</div>
+
+<!-- 사물함 이름 저장 창 -->
+<div id="lockerEdit">
+  <div class="confirm-box">
+    <div class="locker-big" id="lockerBigL">A</div>
+    <div class="q" id="lockerTitle">A 사물함</div>
+    <div class="d" style="margin-bottom:14px">쓰는 사람 이름을 적고 저장을 누르세요</div>
+    <input type="text" id="lockerName" maxlength="12" placeholder="이름 (예: 이아솔)">
+    <input type="text" id="lockerMemo" maxlength="20" placeholder="메모 (예: 열쇠 1개 · 안 써도 됩니다)">
+    <div class="confirm-btns">
+      <button class="btn green" id="lockerSave">저장</button>
+      <button class="btn red" id="lockerClear">비우기</button>
+      <button class="btn gray" id="lockerCancel">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 회원 크게 보기 (카드 두 번 누르기) -->
+<div id="big">
+  <div class="big-box" id="bigBox"></div>
+</div>
+
+<!-- 확인 창 -->
+<div id="confirm">
+  <div class="confirm-box">
+    <div class="q">진짜 할까요?</div>
+    <div class="d" id="confirmDesc"></div>
+    <div class="confirm-btns">
+      <button class="btn red" id="yesBtn">네</button>
+      <button class="btn gray" id="noBtn">아니요</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 대기 화면(index.html)과 똑같은 자료를 씁니다 ================= */
+const KEY = 'arin_gym_v2';                 // 대기 사이트(index.html)와 같은 저장소
+const OLD_KEYS = ['arin_gym_v1', 'arin_boxing_club_v1'];
+const WAIT_PAGE = 'index.html';            // 대기(출석) 사이트
+const PRICE = 1000;
+const MEMBERS = ['0220', '0304', '0511'];
+const ADMIN_PW = '0630@@';                 // 이 사이트 비밀번호
+
+/* 회원 정보 (달력 표시: 0220 사자 / 0304 돼지 / 0511 토끼) */
+const INFO = {
+  '0220': { name: '이아솔', birth: '2017년 02월 20일', no: '0220@@', emoji: '🦁', animal: '사자' },
+  '0304': { name: '이지훈', birth: '1983년 03월 04일', no: '0304@@', emoji: '🐷', animal: '돼지' },
+  '0511': { name: '장혜진', birth: '1985년 05월 11일', no: '0511@@', emoji: '🐰', animal: '토끼' }
+};
+
+const LOCKERS = 'ABCDEFGHIJKLMNOPQRSTU'.split('');   // 사물함 A ~ U (21칸)
+
+function emptyData() {
+  const d = { accounts: {}, lockers: {} };
+  MEMBERS.forEach(p => d.accounts[p] = { balance: 0, days: {} });
+  return d;
+}
+function load() {
+  const fresh = emptyData();
+  try {
+    const cur = JSON.parse(localStorage.getItem(KEY));
+    if (cur && cur.accounts) {
+      MEMBERS.forEach(p => {
+        const a = cur.accounts[p];
+        if (a && typeof a.balance === 'number') fresh.accounts[p] = { balance: a.balance, days: a.days || {} };
+      });
+      if (cur.lockers && typeof cur.lockers === 'object') fresh.lockers = cur.lockers;
+      return fresh;
+    }
+    for (const k of OLD_KEYS) {
+      const old = JSON.parse(localStorage.getItem(k));
+      if (old && typeof old.balance === 'number') {
+        fresh.accounts['0220'] = { balance: old.balance, days: old.days || {} };
+        return fresh;
+      }
+    }
+  } catch (e) {}
+  return fresh;
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+
+let data = load();
+let viewPw = null;                 // null = 모든 회원 달력 같이 보기
+const today = new Date();
+let viewY = today.getFullYear(), viewM = today.getMonth();
+
+const won = n => n.toLocaleString('ko-KR') + '원';
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const acc = p => data.accounts[p];
+const countOf = p => Math.floor(acc(p).balance / PRICE);
+
+/* 대기 화면에서 출석하면 이 화면도 바로 새로 고침 */
+window.addEventListener('storage', e => {
+  if (e.key === KEY) { data = load(); render(); toast('대기 화면에서 바뀐 내용을 불러왔습니다'); }
+});
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) { data = load(); render(); }
+});
+
+/* ================= 비밀번호 (0630@@) ================= */
+let pw = '';
+const dotsBox = document.getElementById('dots');
+const lockMsg = document.getElementById('lockMsg');
+
+function drawDots() {
+  dotsBox.innerHTML = '';
+  for (let i = 0; i < ADMIN_PW.length; i++) {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i < pw.length ? ' on' : '');
+    dotsBox.appendChild(d);
+  }
+}
+function pressKey(ch) {
+  if (pw.length >= ADMIN_PW.length) return;
+  pw += ch;
+  drawDots();
+  if (pw.length === ADMIN_PW.length) setTimeout(submitPw, 150);
+}
+document.querySelectorAll('.keypad .key').forEach(btn => {
+  if (btn.id) return;
+  btn.addEventListener('click', () => pressKey(btn.textContent));
+});
+document.getElementById('backKey').onclick = () => { pw = pw.slice(0, -1); drawDots(); };
+document.getElementById('clearKey').onclick = () => { pw = ''; drawDots(); lockMsg.textContent = ''; };
+document.getElementById('okKey').onclick = submitPw;
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lock').classList.contains('hide')) return;
+  if (/^[0-9@]$/.test(e.key)) pressKey(e.key);
+  else if (e.key === 'Backspace') { pw = pw.slice(0, -1); drawDots(); }
+  else if (e.key === 'Enter') submitPw();
+});
+
+function submitPw() {
+  if (pw === ADMIN_PW) {
+    pw = ''; drawDots(); lockMsg.textContent = '';
+    data = load(); render();
+    document.getElementById('lock').classList.add('hide');
+    document.getElementById('app').style.display = 'block';
+  } else {
+    lockMsg.textContent = '비밀번호가 틀렸습니다';
+    document.getElementById('pwBox').classList.add('shake');
+    setTimeout(() => document.getElementById('pwBox').classList.remove('shake'), 400);
+    pw = ''; drawDots();
+  }
+}
+function lockScreen() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('lock').classList.remove('hide');
+  pw = ''; drawDots(); lockMsg.textContent = '';
+}
+document.getElementById('lockBtn').onclick = lockScreen;
+
+/* 대기 화면으로 이동 */
+const goWait = () => { location.href = WAIT_PAGE; };
+document.getElementById('toWait').onclick = goWait;
+document.getElementById('waitBtn').onclick = goWait;
+document.getElementById('waitBtn2').onclick = goWait;
+
+/* ================= 소리 ================= */
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.45);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 1.1);
+  } catch (e) {}
+}
+/* 시간 다 되면 울리는 알람 (띠리링 띠리링 — 크게, 8번 반복) */
+let alarmCtx = null, alarmTimer = null;
+function stopAlarm() {
+  clearTimeout(alarmTimer); alarmTimer = null;
+  if (alarmCtx) { try { alarmCtx.close(); } catch (e) {} alarmCtx = null; }
+}
+function alarm() {
+  stopAlarm();
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    alarmCtx = ctx;
+    const master = ctx.createGain();
+    master.gain.value = 0.95;                 // 크게!
+    master.connect(ctx.destination);
+
+    const NOTES = [1046, 1318, 1568];         // 띠 - 리 - 링
+    const RINGS = 8;                          // 띠리링 8번
+    for (let r = 0; r < RINGS; r++) {
+      NOTES.forEach((f, i) => {
+        const t = ctx.currentTime + r * 0.75 + i * 0.13;
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(1, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+        osc.connect(g); g.connect(master);
+        osc.start(t); osc.stop(t + 0.17);
+      });
+    }
+    alarmTimer = setTimeout(stopAlarm, RINGS * 750 + 600);
+  } catch (e) {}
+}
+function toast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text; t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ================= 돈 넣기 ================= */
+const moneyInput = document.getElementById('moneyInput');
+const pwInput = document.getElementById('pwInput');
+
+function showBanner(msg) {
+  const b = document.getElementById('banner');
+  b.textContent = msg;
+  b.classList.add('show');
+  clearTimeout(b._t);
+  b._t = setTimeout(() => b.classList.remove('show'), 4000);
+}
+function charge(amount, replace) {
+  const who = pwInput.value.trim();
+  if (!MEMBERS.includes(who)) {
+    beep();
+    toast(who === '0630' || who === ADMIN_PW
+      ? '관리자 비밀번호에는 돈을 넣을 수 없어요 (0220 / 0304 / 0511)'
+      : '회원 비밀번호를 먼저 쓰세요 (0220 / 0304 / 0511)');
+    pwInput.focus(); return;
+  }
+  if (!amount || amount < 0) { toast('금액을 올바르게 입력해 주세요'); moneyInput.focus(); return; }
+
+  data = load();                                  // 대기 화면에서 바뀐 내용 반영 후 더하기
+  const a = acc(who);
+  a.balance = replace ? amount : a.balance + amount;
+  save();
+  viewPw = who; render();
+  moneyInput.value = '';
+  toast(INFO[who].emoji + ' ' + INFO[who].name + '(' + who + ') 회원에게 ' + won(amount) + (replace ? ' 으로 설정했습니다' : ' 넣었습니다'));
+  if (a.balance >= PRICE) showBanner(INFO[who].name + ' 회원님이 운동을 더할 수 있습니다');
+}
+document.getElementById('addBtn').onclick = () => charge(parseInt(moneyInput.value, 10), false);
+document.getElementById('setBtn').onclick = () => charge(parseInt(moneyInput.value, 10), true);
+document.querySelectorAll('.q-amt').forEach(b => b.onclick = () => { moneyInput.value = b.dataset.amt; });
+pwInput.addEventListener('input', () => {
+  pwInput.value = pwInput.value.replace(/[^0-9]/g, '').slice(0, 4);
+  if (MEMBERS.includes(pwInput.value)) { viewPw = pwInput.value; render(); }
+});
+
+/* ================= 전체 초기화 ================= */
+const confirmBox = document.getElementById('confirm');
+document.getElementById('resetBtn').onclick = () => {
+  const totalDays = MEMBERS.reduce((s, p) => s + Object.keys(acc(p).days).length, 0);
+  const totalMoney = MEMBERS.reduce((s, p) => s + acc(p).balance, 0);
+  document.getElementById('confirmDesc').innerHTML =
+    '전체 초기화를 하면 <b>' + MEMBERS.join(' / ') + '</b> 회원 모두의<br>' +
+    '<b>출석한 기록(' + totalDays + '일)</b>과 <b>돈(' + won(totalMoney) + ')</b>이<br>' +
+    '모두 사라지고 되돌릴 수 없습니다.<br>대기 화면에서도 똑같이 지워집니다.<br>(사물함 이름은 지워지지 않습니다)';
+  confirmBox.classList.add('show');
+};
+document.getElementById('yesBtn').onclick = () => {
+  const keepLockers = data.lockers;          // 사물함 이름은 그대로 둠
+  data = emptyData(); data.lockers = keepLockers;
+  save(); render();
+  confirmBox.classList.remove('show');
+  toast('전체 초기화되었습니다 (돈과 출석 기록 모두 0)');
+};
+document.getElementById('noBtn').onclick = () => {
+  confirmBox.classList.remove('show');
+  toast('초기화하지 않았습니다');
+};
+confirmBox.onclick = e => { if (e.target === confirmBox) confirmBox.classList.remove('show'); };
+
+/* ================= 사물함 (A ~ U) — 두 번 누르면 이름 저장 ================= */
+let editingL = null;
+
+function renderLockers() {
+  const grid = document.getElementById('lockerGrid');
+  grid.innerHTML = '';
+  let used = 0;
+  LOCKERS.forEach(L => {
+    const info = data.lockers[L];
+    if (info && info.name) used++;
+    const b = document.createElement('button');
+    b.className = 'locker' + (info && info.name ? ' used' : '');
+    b.innerHTML = '<span class="L">' + L + '</span><span class="nm">' +
+      (info && info.name ? info.name : '비어 있음') + '</span>';
+    b.onclick = () => toast(L + ' 사물함 : ' + (info && info.name
+      ? info.name + (info.memo ? ' (' + info.memo + ')' : '')
+      : '비어 있음 — 두 번 누르면 이름을 넣을 수 있어요'));
+    b.ondblclick = () => openLockerEdit(L);
+    grid.appendChild(b);
+  });
+  document.getElementById('lockerCount').textContent =
+    '모두 ' + LOCKERS.length + '칸 · 쓰는 중 ' + used + '칸 · 빈 칸 ' + (LOCKERS.length - used) + '칸';
+}
+
+function openLockerEdit(L) {
+  editingL = L;
+  const info = data.lockers[L] || {};
+  document.getElementById('lockerBigL').textContent = L;
+  document.getElementById('lockerTitle').textContent = L + ' 사물함';
+  document.getElementById('lockerName').value = info.name || '';
+  document.getElementById('lockerMemo').value = info.memo || '';
+  document.getElementById('lockerEdit').classList.add('show');
+  setTimeout(() => document.getElementById('lockerName').focus(), 50);
+}
+function closeLockerEdit() { document.getElementById('lockerEdit').classList.remove('show'); editingL = null; }
+
+document.getElementById('openLockers').onclick = () => {
+  data = load(); renderLockers();
+  document.getElementById('lockers').classList.add('show');
+};
+document.getElementById('lockersClose').onclick = () => document.getElementById('lockers').classList.remove('show');
+document.getElementById('lockers').onclick = e => { if (e.target.id === 'lockers') document.getElementById('lockers').classList.remove('show'); };
+
+document.getElementById('lockerSave').onclick = () => {
+  const name = document.getElementById('lockerName').value.trim();
+  const memo = document.getElementById('lockerMemo').value.trim();
+  if (!name) { toast('이름을 적어 주세요'); document.getElementById('lockerName').focus(); return; }
+  data.lockers[editingL] = { name: name, memo: memo };
+  save();
+  const L = editingL;
+  closeLockerEdit(); renderLockers();
+  toast(L + ' 사물함 → ' + name + ' 저장했습니다');
+};
+document.getElementById('lockerClear').onclick = () => {
+  const L = editingL;
+  delete data.lockers[L];
+  save();
+  closeLockerEdit(); renderLockers();
+  toast(L + ' 사물함을 비웠습니다');
+};
+document.getElementById('lockerCancel').onclick = closeLockerEdit;
+document.getElementById('lockerEdit').onclick = e => { if (e.target.id === 'lockerEdit') closeLockerEdit(); };
+document.getElementById('lockerName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('lockerSave').click();
+});
+
+/* ================= 운동 타이머 ================= */
+let tSet = 0, tLeft = 0, tTimer = null;
+const timerView = document.getElementById('timerView');
+const timerBar = document.getElementById('timerBar');
+
+function fmt(s) {
+  const m = Math.floor(s / 60), ss = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+}
+function drawTimer() {
+  timerView.textContent = fmt(tLeft);
+  timerBar.style.width = (tSet > 0 ? (tLeft / tSet * 100) : 0) + '%';
+}
+function timerStop() { clearInterval(tTimer); tTimer = null; timerView.classList.remove('run'); }
+function setTime(sec) {
+  timerStop(); timerView.classList.remove('done');
+  tSet = tLeft = Math.max(0, Math.min(sec, 60 * 180));
+  drawTimer();
+}
+function timerStart() {
+  if (tLeft <= 0) { toast('시간을 먼저 맞춰 주세요'); return; }
+  if (tTimer) return;
+  timerView.classList.add('run'); timerView.classList.remove('done');
+  tTimer = setInterval(() => {
+    tLeft--; drawTimer();
+    if (tLeft <= 0) {
+      timerStop(); timerView.classList.add('done');
+      alarm(); toast('⏰ 시간이 다 됐습니다!');
+    }
+  }, 1000);
+}
+document.querySelectorAll('.t-preset').forEach(b => b.onclick = () => {
+  setTime(parseInt(b.dataset.sec, 10));
+  toast(b.textContent + ' 으로 맞췄습니다 (시작을 누르세요)');
+});
+document.getElementById('setTimeBtn').onclick = () => {
+  const m = parseInt(document.getElementById('minInput').value, 10) || 0;
+  const s = parseInt(document.getElementById('secInput').value, 10) || 0;
+  if (m <= 0 && s <= 0) { toast('분 또는 초를 입력해 주세요'); return; }
+  setTime(m * 60 + s);
+  toast(fmt(tLeft) + ' 으로 맞췄습니다 (시작을 누르세요)');
+};
+document.getElementById('startBtn').onclick = timerStart;
+document.getElementById('pauseBtn').onclick = () => {
+  if (!tTimer) { toast('가고 있는 타이머가 없습니다'); return; }
+  timerStop(); toast('일시정지 (' + fmt(tLeft) + ')');
+};
+document.getElementById('stopBtn').onclick = () => {
+  timerStop(); stopAlarm(); tSet = 0; tLeft = 0;
+  timerView.classList.remove('done'); drawTimer();
+  toast('타이머를 초기화했습니다');
+};
+timerView.onclick = () => { if (alarmCtx) { stopAlarm(); toast('알람을 껐습니다'); } };
+
+/* ================= 달력 / 화면 그리기 ================= */
+const DOW = ['일','월','화','수','목','금','토'];
+/* who: 회원 비번 하나 → 그 회원만 / null → 세 명 모두 (사자·돼지·토끼) */
+function marksFor(key, who) {
+  const list = who ? [who] : MEMBERS;
+  let html = '';
+  list.forEach(p => {
+    const n = acc(p).days[key];
+    if (n) html += INFO[p].emoji + (n > 1 ? '×' + n : '');
+  });
+  return html;
+}
+function buildCalendar(grid, y, m, who) {
+  grid.innerHTML = '';
+  DOW.forEach(d => {
+    const e = document.createElement('div');
+    e.className = 'dow'; e.textContent = d; grid.appendChild(e);
+  });
+  const first = new Date(y, m, 1).getDay();
+  const last = new Date(y, m + 1, 0).getDate();
+  for (let i = 0; i < first; i++) {
+    const e = document.createElement('div'); e.className = 'day empty'; grid.appendChild(e);
+  }
+  const todayKey = ymd(today);
+  for (let d = 1; d <= last; d++) {
+    const key = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const e = document.createElement('div');
+    e.className = 'day';
+    if (key === todayKey) e.classList.add('today');
+    const marks = marksFor(key, who);
+    if (marks) e.classList.add('att');
+    e.innerHTML = d + (marks ? '<div class="mark">' + marks + '</div>' : '');
+    grid.appendChild(e);
+  }
+}
+document.getElementById('prevM').onclick = () => { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); };
+document.getElementById('nextM').onclick = () => { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); };
+
+/* 회원 카드 (이름 / 생일 / 번호 / 남은돈) */
+function renderCards() {
+  const box = document.getElementById('memberCards');
+  box.innerHTML = '';
+  MEMBERS.forEach(p => {
+    const i = INFO[p], a = acc(p);
+    const c = document.createElement('button');
+    c.className = 'mcard' + (p === viewPw ? ' on' : '');
+    c.innerHTML =
+      '<div class="head"><span class="emoji">' + i.emoji + '</span><span class="pwno">' + p + '</span></div>' +
+      '<div class="row">이름 : <b>' + i.name + '</b></div>' +
+      '<div class="row">생일 : <b>' + i.birth + '</b></div>' +
+      '<div class="row">번호 : <b>' + i.no + '</b></div>' +
+      '<div class="money">남은돈 : ' + won(a.balance) + ' <small>(' + countOf(p) + '회)</small></div>';
+    c.onclick = () => {
+      if (viewPw === p) { viewPw = null; }        // 다시 누르면 모두 보기
+      else { viewPw = p; pwInput.value = p; }     // 충전 칸에 번호 자동 입력
+      render();
+    };
+    c.ondblclick = () => showBig(p);              // 두 번 누르면 크게 보기
+    box.appendChild(c);
+  });
+}
+
+/* 카드 두 번 누르면 그 회원을 크게 보여 줌 */
+function showBig(p) {
+  const i = INFO[p], a = acc(p);
+  document.getElementById('bigBox').innerHTML =
+    '<div class="big-emoji">' + i.emoji + '</div>' +
+    '<div class="big-name">' + i.name + '</div>' +
+    '<div class="big-pw">' + p + ' 회원 · ' + i.animal + '</div>' +
+    '<div class="big-rows">' +
+      '<div class="big-row">이름 <b>' + i.name + '</b></div>' +
+      '<div class="big-row">생일 <b>' + i.birth + '</b></div>' +
+      '<div class="big-row">번호 <b>' + i.no + '</b></div>' +
+      '<div class="big-row money">남은돈 <b>' + won(a.balance) + '</b></div>' +
+      '<div class="big-row">남은 출석 횟수 <b>' + countOf(p) + '회</b></div>' +
+      '<div class="big-row">이번 달 출석 <b>' + monthCount(p, viewY, viewM) + '번</b></div>' +
+    '</div>' +
+    '<div class="cal-head"><button class="cal-nav" id="bigPrev">‹</button>' +
+    '<div class="m">' + viewY + '년 ' + (viewM + 1) + '월 · ' + i.name + '</div>' +
+    '<button class="cal-nav" id="bigNext">›</button></div>' +
+    '<div class="grid" id="bigCal"></div>' +
+    '<button class="btn big-close" id="bigClose" style="margin-top:16px">닫기</button>';
+  buildCalendar(document.getElementById('bigCal'), viewY, viewM, p);
+  document.getElementById('bigClose').onclick = closeBig;
+  document.getElementById('bigPrev').onclick = () => { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); showBig(p); };
+  document.getElementById('bigNext').onclick = () => { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); showBig(p); };
+  document.getElementById('big').classList.add('show');
+}
+function closeBig() { document.getElementById('big').classList.remove('show'); }
+document.getElementById('big').onclick = e => { if (e.target.id === 'big') closeBig(); };
+
+function monthCount(p, y, m) {
+  const pre = y + '-' + String(m+1).padStart(2,'0') + '-';
+  return Object.keys(acc(p).days).filter(k => k.startsWith(pre)).reduce((s,k) => s + acc(p).days[k], 0);
+}
+function renderLegend() {
+  document.getElementById('legend').innerHTML =
+    MEMBERS.map(p => INFO[p].emoji + ' <b>' + p + ' ' + INFO[p].name + '</b>(' + INFO[p].animal + ')').join(' · ') +
+    '<br>표시가 있는 날 = 그 회원이 출석한 날' +
+    (viewPw ? ' · 지금은 <b>' + INFO[viewPw].name + '</b> 회원만 보는 중 (카드를 다시 누르면 모두 보기)' : '');
+}
+function render() {
+  renderCards();
+  renderLegend();
+  document.getElementById('calTitle').textContent =
+    viewY + '년 ' + (viewM + 1) + '월 · ' + (viewPw ? viewPw + ' ' + INFO[viewPw].name : '모든 회원');
+  buildCalendar(document.getElementById('calGrid'), viewY, viewM, viewPw);
+}
+
+drawDots();
+render();
+drawTimer();
+</script>
+</body>
+</html>

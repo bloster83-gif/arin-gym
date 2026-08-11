@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>아린 헬스장</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Pretendard", "Malgun Gothic", "맑은 고딕", sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #111;
+    overflow-x: hidden;
+  }
+
+  /* ===== 헬스장 배경 (첫 화면) ===== */
+  #login {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    background: #0b0e14;
+    z-index: 10;
+    overflow: hidden;
+  }
+  #gymBg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+  }
+  #login .scrim {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 22%, rgba(0,0,0,0) 40%, rgba(0,0,0,.35) 80%),
+                linear-gradient(to bottom, rgba(0,0,0,0) 55%, rgba(0,0,0,.6) 100%);
+  }
+  #login .pw-box, #login .msg { position: relative; z-index: 2; }
+
+  .subtitle {
+    position: relative; z-index: 2;
+    color: rgba(255,255,255,.92); font-size: 15px; font-weight: 700;
+    margin-bottom: 16px; text-shadow: 0 2px 10px rgba(0,0,0,.8);
+  }
+  @keyframes rainbow {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .pw-box {
+    background: rgba(10,12,18,.55);
+    backdrop-filter: blur(12px);
+    border: 2px solid rgba(255,255,255,.35);
+    border-radius: 22px;
+    padding: 24px;
+    width: 320px;
+    max-width: 92vw;
+    box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  }
+  .dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 18px; }
+  .dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 2px solid #fff; background: transparent;
+    transition: all .15s;
+  }
+  .dot.on { background: #fff; transform: scale(1.15); }
+
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .key {
+    height: 56px;
+    font-size: 22px; font-weight: 700;
+    color: #fff;
+    background: rgba(255,255,255,.22);
+    border: none; border-radius: 14px;
+    cursor: pointer;
+    transition: transform .08s, background .15s;
+  }
+  .key:active { transform: scale(.93); background: rgba(255,255,255,.45); }
+  .key.small { font-size: 15px; }
+
+  .msg { color: #fff; font-weight: 800; height: 24px; margin-top: 14px; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+  .site-link {
+    position: relative; z-index: 2; margin: 10px 0 5vh;
+    color: rgba(255,255,255,.8); font-size: 13px; font-weight: 700;
+    text-decoration: underline; cursor: pointer; text-shadow: 0 2px 8px rgba(0,0,0,.8);
+  }
+  .site-link:hover { color: #fff; }
+  .shake { animation: shake .4s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-12px); }
+    40% { transform: translateX(12px); }
+    60% { transform: translateX(-8px); }
+    80% { transform: translateX(8px); }
+  }
+
+  /* ===== 앱 화면 ===== */
+  #app { display: none; width: 100%; min-height: 100vh; background: #f4f5f8; }
+  #app.show { display: block; }
+
+  .topbar {
+    position: relative;
+    background: linear-gradient(90deg, #ff004d, #ff7a00, #ffdd00, #24d05a, #00b8ff, #4b3bff, #b400ff);
+    color: #fff; padding: 18px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+    box-shadow: 0 4px 14px rgba(0,0,0,.2);
+  }
+  .topbar h1 { font-size: 20px; font-weight: 900; }
+  .mode-tag { font-size: 12px; background: rgba(0,0,0,.28); padding: 4px 10px; border-radius: 999px; margin-left: 8px; }
+  #closeBtn {
+    width: 38px; height: 38px; border-radius: 50%;
+    border: none; background: rgba(0,0,0,.3); color: #fff;
+    font-size: 20px; font-weight: 900; cursor: pointer;
+  }
+  #closeBtn:hover { background: rgba(0,0,0,.5); }
+
+  .wrap { max-width: 560px; margin: 0 auto; padding: 18px 16px 50px; }
+
+  .card {
+    background: #fff; border-radius: 18px; padding: 20px;
+    box-shadow: 0 6px 18px rgba(0,0,0,.07); margin-bottom: 16px;
+  }
+  .card h2 { font-size: 16px; margin-bottom: 14px; color: #333; }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: center; }
+  .stat { background: #f7f8fc; border-radius: 14px; padding: 14px 8px; }
+  .stat .label { font-size: 12px; color: #888; margin-bottom: 6px; }
+  .stat .value { font-size: 26px; font-weight: 900; color: #4b3bff; }
+  .stat .value.money { color: #24a05a; }
+
+  .banner {
+    margin-top: 14px; padding: 14px; border-radius: 14px; text-align: center;
+    font-weight: 800; font-size: 16px;
+    background: linear-gradient(90deg, #fff1cc, #ffe0f0);
+    color: #b8005d; display: none;
+  }
+  .banner.show { display: block; animation: pop .35s; }
+  @keyframes pop { from { transform: scale(.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .money-row { display: flex; gap: 8px; margin-bottom: 10px; }
+  input[type=number], input[type=text] {
+    flex: 1; padding: 12px 14px; font-size: 16px; width: 100%;
+    border: 2px solid #e3e5ee; border-radius: 12px; outline: none;
+    font-family: inherit;
+  }
+  input:focus { border-color: #4b3bff; }
+  #pwInput { letter-spacing: 6px; font-weight: 800; }
+  .hint { font-size: 12px; color: #999; margin: -4px 0 10px 4px; }
+
+  /* 타이머 */
+  .timer-display {
+    text-align: center; font-size: 58px; font-weight: 900; letter-spacing: 2px;
+    color: #4b3bff; margin: 4px 0 16px; font-variant-numeric: tabular-nums;
+  }
+  .timer-display.run { color: #24a05a; }
+  .timer-display.done { color: #ff3b5c; animation: shake .4s 3; }
+  .timer-bar { height: 10px; border-radius: 999px; background: #eef0f6; overflow: hidden; margin-bottom: 16px; }
+  .timer-bar > div {
+    height: 100%; width: 0%; border-radius: 999px;
+    background: linear-gradient(90deg, #24d05a, #00b8ff, #4b3bff);
+    transition: width .3s linear;
+  }
+
+  /* 회원 카드 */
+  .mcards { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; }
+  .mcard {
+    border: 2px solid #e8eaf2; border-radius: 18px; padding: 14px;
+    background: #fff; cursor: pointer; text-align: left; font-family: inherit;
+    transition: all .15s;
+  }
+  .mcard:hover { border-color: #c8ccdd; }
+  .mcard.on { border-color: #4b3bff; background: #f4f2ff; box-shadow: 0 6px 16px rgba(75,59,255,.16); }
+  .mcard .head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .mcard .emoji { font-size: 30px; line-height: 1; }
+  .mcard .pwno { font-size: 17px; font-weight: 900; color: #4b3bff; }
+  .mcard .row { font-size: 13px; color: #666; margin-top: 4px; }
+  .mcard .row b { color: #222; font-weight: 800; }
+  .mcard .money { margin-top: 10px; font-size: 16px; font-weight: 900; color: #24a05a; }
+  .mcard .money small { color: #999; font-weight: 800; font-size: 12px; }
+
+  .legend {
+    margin-top: 12px; font-size: 13px; color: #777; text-align: center; line-height: 1.9;
+  }
+  .legend b { color: #333; }
+
+  /* 카드 두 번 누르면 크게 보이는 창 */
+  #big {
+    position: fixed; inset: 0; z-index: 35; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.65); padding: 16px;
+  }
+  #big.show { display: flex; }
+  .big-box {
+    background: #fff; border-radius: 26px; padding: 26px 22px;
+    width: 460px; max-width: 94vw; max-height: 92vh; overflow-y: auto;
+    text-align: center; animation: pop .25s;
+  }
+  .big-emoji { font-size: 96px; line-height: 1.1; }
+  .big-name { font-size: 34px; font-weight: 900; color: #222; margin-top: 4px; }
+  .big-pw { display: inline-block; margin: 8px 0 18px; padding: 5px 14px; border-radius: 999px;
+    background: #f1efff; color: #4b3bff; font-weight: 900; font-size: 15px; }
+  .big-rows { text-align: left; margin: 0 auto 18px; max-width: 340px; }
+  .big-row {
+    display: flex; justify-content: space-between; gap: 10px;
+    padding: 11px 14px; border-radius: 12px; background: #f7f8fc; margin-bottom: 8px;
+    font-size: 15px; color: #666;
+  }
+  .big-row b { color: #222; font-size: 16px; }
+  .big-row.money b { color: #24a05a; font-size: 19px; }
+  .big-close { width: 100%; padding: 15px 0; font-size: 17px; }
+  .btn {
+    padding: 12px 16px; border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 800; color: #fff; cursor: pointer;
+    background: #4b3bff;
+  }
+  .btn:active { transform: scale(.96); }
+  .btn.green { background: #24a05a; }
+  .btn.gray { background: #8b90a0; }
+  .btn.red { background: #ff3b5c; }
+  .quick { display: flex; gap: 8px; flex-wrap: wrap; }
+  .quick .btn { flex: 1; font-size: 14px; padding: 10px 6px; background: #eef0ff; color: #4b3bff; }
+
+  /* ===== 달력 ===== */
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .cal-head .m { font-size: 18px; font-weight: 900; color: #333; }
+  .cal-nav { border: none; background: #f0f1f6; width: 34px; height: 34px; border-radius: 10px; font-size: 16px; cursor: pointer; }
+  .grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .dow { text-align: center; font-size: 12px; font-weight: 800; color: #999; padding-bottom: 4px; }
+  .dow:first-child { color: #ff3b5c; }
+  .dow:last-child { color: #4b7bff; }
+  .day {
+    aspect-ratio: 1; border-radius: 12px; background: #f7f8fc;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-size: 14px; color: #444; position: relative;
+  }
+  .day.empty { background: transparent; }
+  .day.today { outline: 2px solid #4b3bff; font-weight: 900; }
+  .day.att { background: linear-gradient(135deg, #ff7a00, #ff004d); color: #fff; font-weight: 900; }
+  .day .mark { font-size: 11px; line-height: 1; margin-top: 2px; }
+
+  /* ===== 출석 결과 ===== */
+  #result {
+    position: fixed; inset: 0; z-index: 20;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55); padding: 16px;
+  }
+  #result.show { display: flex; }
+  .result-box {
+    background: #fff; border-radius: 22px; padding: 26px 22px;
+    width: 420px; max-width: 94vw; text-align: center;
+    animation: pop .3s;
+  }
+  .result-box .big { font-size: 30px; font-weight: 900; margin-bottom: 6px; }
+  .result-box.ok .big { color: #24a05a; }
+  .result-box.fail .big { color: #ff3b5c; }
+  .result-box .sub { color: #666; margin-bottom: 16px; font-size: 15px; }
+  .result-box .count { font-size: 22px; font-weight: 900; color: #4b3bff; margin-bottom: 4px; }
+  .beep-text { font-size: 42px; font-weight: 900; color: #ff3b5c; letter-spacing: 4px; animation: shake .4s 2; }
+  .back-note { margin-top: 14px; font-size: 13px; color: #999; }
+  #resultCal { margin-top: 16px; }
+
+  /* ===== 확인 창 (네 / 아니요) ===== */
+  #confirm {
+    position: fixed; inset: 0; z-index: 30;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.6); padding: 16px;
+  }
+  #confirm.show { display: flex; }
+  .confirm-box {
+    background: #fff; border-radius: 22px; padding: 28px 22px 22px;
+    width: 380px; max-width: 94vw; text-align: center;
+    animation: pop .25s;
+  }
+  .confirm-box .q { font-size: 24px; font-weight: 900; color: #222; margin-bottom: 8px; }
+  .confirm-box .d { font-size: 14px; color: #777; line-height: 1.6; margin-bottom: 20px; }
+  .confirm-btns { display: flex; gap: 10px; }
+  .confirm-btns .btn { flex: 1; padding: 15px 0; font-size: 17px; }
+
+  /* ===== 안내 토스트 ===== */
+  #toast {
+    position: fixed; left: 50%; bottom: 34px; transform: translateX(-50%) translateY(20px);
+    background: rgba(20,22,30,.92); color: #fff; font-weight: 800;
+    padding: 14px 22px; border-radius: 999px; z-index: 40;
+    opacity: 0; pointer-events: none; transition: all .25s;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ================= 첫 화면 ================= -->
+<div id="login">
+  <!-- ===== 헬스장 배경 그림 (간판: 아린 헬스장) ===== -->
+  <svg id="gymBg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#232a3b"/><stop offset="60%" stop-color="#161b27"/><stop offset="100%" stop-color="#0f131c"/>
+      </linearGradient>
+      <linearGradient id="floor" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2b3040"/><stop offset="100%" stop-color="#12151d"/>
+      </linearGradient>
+      <linearGradient id="signRb" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#ff2f6e"/><stop offset="25%" stop-color="#ff9f1c"/>
+        <stop offset="50%" stop-color="#ffe74c"/><stop offset="72%" stop-color="#2ee6a8"/>
+        <stop offset="100%" stop-color="#5b8cff"/>
+      </linearGradient>
+      <radialGradient id="lampGlow" cx="50%" cy="0%" r="70%">
+        <stop offset="0%" stop-color="#ffffff" stop-opacity=".28"/>
+        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+      </radialGradient>
+      <filter id="signGlow" x="-40%" y="-80%" width="180%" height="300%">
+        <feGaussianBlur stdDeviation="12" result="b"/>
+        <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+
+    <!-- 벽 / 바닥 -->
+    <rect width="1200" height="620" fill="url(#wall)"/>
+    <rect y="620" width="1200" height="180" fill="url(#floor)"/>
+    <rect y="616" width="1200" height="6" fill="#0a0d14"/>
+    <g opacity=".18" stroke="#8fa0c8" stroke-width="2">
+      <path d="M0 700 H1200"/><path d="M0 760 H1200"/>
+      <path d="M150 620 V800"/><path d="M420 620 V800"/><path d="M700 620 V800"/><path d="M980 620 V800"/>
+    </g>
+
+    <!-- 천장 조명 -->
+    <g>
+      <rect x="140" y="26" width="260" height="14" rx="7" fill="#dfe8ff" opacity=".85"/>
+      <rect x="470" y="26" width="260" height="14" rx="7" fill="#dfe8ff" opacity=".85"/>
+      <rect x="800" y="26" width="260" height="14" rx="7" fill="#dfe8ff" opacity=".85"/>
+      <rect x="100" y="40" width="1000" height="300" fill="url(#lampGlow)"/>
+    </g>
+
+    <!-- 거울 벽 -->
+    <g opacity=".5">
+      <rect x="40" y="330" width="330" height="270" rx="6" fill="#39435c" opacity=".55"/>
+      <path d="M60 600 L230 340 L300 340 L120 600 Z" fill="#ffffff" opacity=".07"/>
+      <rect x="830" y="330" width="330" height="270" rx="6" fill="#39435c" opacity=".55"/>
+      <path d="M860 600 L1020 340 L1080 340 L910 600 Z" fill="#ffffff" opacity=".07"/>
+    </g>
+
+    <!-- ===== 간판: 아린 헬스장 ===== -->
+    <g filter="url(#signGlow)">
+      <rect x="300" y="96" width="600" height="164" rx="20" fill="#0d1220" stroke="url(#signRb)" stroke-width="6"/>
+      <text x="600" y="188" text-anchor="middle" font-family="Malgun Gothic, Pretendard, sans-serif"
+            font-size="74" font-weight="900" fill="url(#signRb)" letter-spacing="4">아린 헬스장</text>
+      <text x="600" y="228" text-anchor="middle" font-family="Segoe UI, sans-serif"
+            font-size="20" font-weight="700" fill="#9fb2d8" letter-spacing="10">ARIN FITNESS</text>
+    </g>
+
+    <!-- 파워랙 (왼쪽) -->
+    <g fill="#63719a">
+      <rect x="70" y="330" width="18" height="290"/>
+      <rect x="250" y="330" width="18" height="290"/>
+      <rect x="70" y="330" width="198" height="16"/>
+      <rect x="70" y="470" width="198" height="10" fill="#5d6a8a"/>
+      <g fill="#2b3145">
+        <circle cx="120" cy="475" r="46"/><circle cx="218" cy="475" r="46"/>
+      </g>
+      <rect x="112" y="468" width="114" height="14" fill="#7d8aab"/>
+    </g>
+
+    <!-- 벤치프레스 (가운데 오른쪽) -->
+    <g>
+      <rect x="640" y="470" width="14" height="150" fill="#63719a"/>
+      <rect x="860" y="470" width="14" height="150" fill="#63719a"/>
+      <rect x="628" y="452" width="258" height="12" rx="6" fill="#7d8aab"/>
+      <g fill="#2b3145">
+        <circle cx="660" cy="458" r="40"/><circle cx="854" cy="458" r="40"/>
+      </g>
+      <rect x="690" y="540" width="150" height="20" rx="8" fill="#c2352f"/>
+      <rect x="700" y="560" width="14" height="60" fill="#63719a"/>
+      <rect x="818" y="560" width="14" height="60" fill="#63719a"/>
+    </g>
+
+    <!-- 덤벨 랙 (앞쪽) -->
+    <g transform="translate(330,520)">
+      <path d="M0 100 L20 30 L250 30 L270 100 Z" fill="#4b5678"/>
+      <rect x="10" y="24" width="250" height="12" rx="6" fill="#525d7d"/>
+      <g fill="#20242f">
+        <g transform="translate(40,10)"><circle cx="0" cy="0" r="16"/><circle cx="46" cy="0" r="16"/><rect x="0" y="-5" width="46" height="10" fill="#6f7c9e"/></g>
+        <g transform="translate(120,10)"><circle cx="0" cy="0" r="16"/><circle cx="46" cy="0" r="16"/><rect x="0" y="-5" width="46" height="10" fill="#6f7c9e"/></g>
+        <g transform="translate(200,10)"><circle cx="0" cy="0" r="16"/><circle cx="46" cy="0" r="16"/><rect x="0" y="-5" width="46" height="10" fill="#6f7c9e"/></g>
+      </g>
+    </g>
+
+    <!-- 러닝머신 (오른쪽) -->
+    <g transform="translate(950,430)">
+      <rect x="0" y="150" width="210" height="34" rx="10" fill="#4b5678"/>
+      <rect x="10" y="140" width="190" height="14" rx="6" fill="#20242f"/>
+      <rect x="150" y="20" width="14" height="130" fill="#525d7d"/>
+      <rect x="96" y="0" width="120" height="46" rx="8" fill="#2b3145" stroke="#6f7c9e" stroke-width="3"/>
+      <rect x="106" y="12" width="100" height="22" rx="4" fill="#5b8cff" opacity=".55"/>
+      <path d="M40 120 H160" stroke="#525d7d" stroke-width="10" stroke-linecap="round"/>
+    </g>
+
+    <!-- 케틀벨 / 원판 -->
+    <g>
+      <path d="M300 620 q0 -46 26 -46 q26 0 26 46 z" fill="#2b3145"/>
+      <ellipse cx="326" cy="612" rx="30" ry="24" fill="#4b5678"/>
+      <circle cx="620" cy="608" r="26" fill="#2b3145"/>
+      <circle cx="620" cy="608" r="10" fill="#6f7c9e"/>
+    </g>
+
+    <!-- 무지개 라인 -->
+    <rect x="0" y="596" width="1200" height="8" fill="url(#signRb)" opacity=".55"/>
+  </svg>
+  <div class="scrim"></div>
+
+  <div class="subtitle">비밀번호를 입력하세요</div>
+
+  <div class="pw-box" id="pwBox">
+    <div class="dots">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <div class="keypad">
+      <button class="key">1</button><button class="key">2</button><button class="key">3</button>
+      <button class="key">4</button><button class="key">5</button><button class="key">6</button>
+      <button class="key">7</button><button class="key">8</button><button class="key">9</button>
+      <button class="key small" id="clearKey">전체지움</button>
+      <button class="key">0</button>
+      <button class="key small" id="backKey">←</button>
+    </div>
+  </div>
+  <div class="msg" id="loginMsg"></div>
+  <div class="site-link" id="toAdmin">🔐 아린 헬스장 관리자 모드 사이트 열기 →</div>
+</div>
+
+<!-- ================= 앱 화면 ================= -->
+<div id="app">
+  <div class="topbar">
+    <div><h1 style="display:inline">💪 아린 헬스장</h1><span class="mode-tag" id="modeTag">관리자</span></div>
+    <button id="closeBtn">✕</button>
+  </div>
+
+  <div class="wrap">
+    <div class="card">
+      <h2>👥 회원 (눌러서 그 회원 달력만 보기)</h2>
+      <div class="mcards" id="memberCards"></div>
+    </div>
+
+    <div class="card" id="moneyCard">
+      <h2>⚙️ 관리</h2>
+      <div class="hint" style="margin:0 0 12px 2px">
+        돈 넣기는 <b>관리자 모드 사이트(0630@@)</b>에서만 할 수 있습니다.
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn" id="goAdminBtn" style="flex:1">🔐 관리자 모드 사이트 열기</button>
+        <button class="btn red" id="resetBtn" style="flex:1">전체 초기화</button>
+      </div>
+    </div>
+
+    <div class="card" id="timerCard">
+      <h2>⏱️ 운동 타이머</h2>
+      <div class="timer-display" id="timerView">00:00</div>
+      <div class="timer-bar"><div id="timerBar"></div></div>
+      <div class="quick" style="margin-bottom:10px">
+        <button class="btn t-preset" data-sec="60">1분</button>
+        <button class="btn t-preset" data-sec="180">3분</button>
+        <button class="btn t-preset" data-sec="300">5분</button>
+        <button class="btn t-preset" data-sec="600">10분</button>
+        <button class="btn t-preset" data-sec="1800">30분</button>
+      </div>
+      <div class="money-row">
+        <input type="number" id="minInput" placeholder="분" min="0" max="180">
+        <input type="number" id="secInput" placeholder="초" min="0" max="59">
+        <button class="btn" id="setTimeBtn">맞추기</button>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn green" id="startBtn" style="flex:1">▶ 시작</button>
+        <button class="btn gray" id="pauseBtn" style="flex:1">⏸ 일시정지</button>
+        <button class="btn red" id="stopBtn" style="flex:1">⏹ 초기화</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="cal-head">
+        <button class="cal-nav" id="prevM">‹</button>
+        <div class="m" id="calTitle"></div>
+        <button class="cal-nav" id="nextM">›</button>
+      </div>
+      <div class="grid" id="calGrid"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 출석 결과 팝업 ================= -->
+<div id="result">
+  <div class="result-box" id="resultBox">
+    <div id="resultInner"></div>
+    <div class="grid" id="resultCal"></div>
+    <div class="back-note" id="backNote"></div>
+  </div>
+</div>
+
+<!-- ================= 회원 크게 보기 (카드를 두 번 누르면 열림) ================= -->
+<div id="big">
+  <div class="big-box" id="bigBox"></div>
+</div>
+
+<!-- ================= 확인 창 (네 / 아니요) ================= -->
+<div id="confirm">
+  <div class="confirm-box">
+    <div class="q">진짜 할까요?</div>
+    <div class="d" id="confirmDesc"></div>
+    <div class="confirm-btns">
+      <button class="btn red" id="yesBtn">네</button>
+      <button class="btn gray" id="noBtn">아니요</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/* ================= 자료 (관리자 사이트와 같이 씀) ================= */
+const KEY = 'arin_gym_v2';
+const OLD_KEYS = ['arin_gym_v1', 'arin_boxing_club_v1'];   // 예전 기록도 그대로 가져옴
+const PRICE = 1000;                        // 1일 출석 = 1000원
+const ADMIN_PW = '0630';                   // 관리자: 그냥 들어감 (돈 안 빠짐)
+const MEMBERS = ['0220', '0304', '0511'];  // 회원: 들어가면 출석 1회 = 1000원 차감
+
+/* 회원 정보 (달력 표시: 0220 사자 / 0304 돼지 / 0511 토끼) */
+const INFO = {
+  '0220': { name: '이아솔', birth: '2017년 02월 20일', no: '0220@@', emoji: '🦁', animal: '사자' },
+  '0304': { name: '이지훈', birth: '1983년 03월 04일', no: '0304@@', emoji: '🐷', animal: '돼지' },
+  '0511': { name: '장혜진', birth: '1985년 05월 11일', no: '0511@@', emoji: '🐰', animal: '토끼' }
+};
+
+function emptyData() {
+  const d = { accounts: {}, lockers: {} };   // lockers = 관리자 사이트 사물함 (대기 화면에선 그대로 둠)
+  MEMBERS.forEach(p => d.accounts[p] = { balance: 0, days: {} });
+  return d;
+}
+function load() {
+  const fresh = emptyData();
+  try {
+    const cur = JSON.parse(localStorage.getItem(KEY));
+    if (cur && cur.accounts) {
+      MEMBERS.forEach(p => {
+        const a = cur.accounts[p];
+        if (a && typeof a.balance === 'number') fresh.accounts[p] = { balance: a.balance, days: a.days || {} };
+      });
+      if (cur.lockers && typeof cur.lockers === 'object') fresh.lockers = cur.lockers;
+      return fresh;
+    }
+    for (const k of OLD_KEYS) {           // 계정 나누기 전 기록 → 0220 회원으로
+      const old = JSON.parse(localStorage.getItem(k));
+      if (old && typeof old.balance === 'number') {
+        fresh.accounts['0220'] = { balance: old.balance, days: old.days || {} };
+        return fresh;
+      }
+    }
+  } catch (e) {}
+  return fresh;
+}
+function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+
+let data = load();
+let mode = null;                    // 'admin'
+let viewPw = null;                  // null = 모든 회원 달력 같이 보기
+const today = new Date();
+let viewY = today.getFullYear(), viewM = today.getMonth();
+
+const ymd = d => d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+const won = n => n.toLocaleString('ko-KR') + '원';
+const acc = p => data.accounts[p];
+const countOf = p => Math.floor(acc(p).balance / PRICE);
+
+/* ================= 소리 (삐이익) ================= */
+function beep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.45);
+    gain.gain.setValueAtTime(0.25, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 1.1);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 1.1);
+  } catch (e) {}
+}
+
+/* ================= 비밀번호 입력 ================= */
+let pw = '';
+const dots = document.querySelectorAll('#login .dot');
+const loginMsg = document.getElementById('loginMsg');
+
+function drawDots() {
+  dots.forEach((d, i) => d.classList.toggle('on', i < pw.length));
+}
+function pressKey(n) {
+  if (pw.length >= 4) return;
+  pw += n;
+  drawDots();
+  if (pw.length === 4) setTimeout(submitPw, 150);
+}
+document.querySelectorAll('#login .key').forEach(btn => {
+  if (btn.id) return;
+  btn.addEventListener('click', () => pressKey(btn.textContent));
+});
+document.getElementById('backKey').onclick = () => { pw = pw.slice(0, -1); drawDots(); };
+document.getElementById('clearKey').onclick = () => { pw = ''; drawDots(); loginMsg.textContent = ''; };
+document.addEventListener('keydown', e => {
+  if (document.getElementById('login').style.display === 'none') return;
+  if (/^[0-9]$/.test(e.key)) pressKey(e.key);
+  else if (e.key === 'Backspace') { pw = pw.slice(0, -1); drawDots(); }
+});
+
+function submitPw() {
+  if (pw === ADMIN_PW) {                 // 0630 → 관리자 (그냥 들어감)
+    pw = ''; drawDots(); loginMsg.textContent = '';
+    openApp('admin');
+  } else if (MEMBERS.includes(pw)) {     // 0220 / 0511 / 0304 → 출석 (1000원 차감)
+    const who = pw;
+    pw = ''; drawDots(); loginMsg.textContent = '';
+    doAttendance(who);
+  } else {
+    loginMsg.textContent = '비밀번호가 틀렸습니다';
+    document.getElementById('pwBox').classList.add('shake');
+    setTimeout(() => document.getElementById('pwBox').classList.remove('shake'), 400);
+    pw = ''; drawDots();
+  }
+}
+
+/* ================= 화면 전환 ================= */
+function openApp(m) {
+  mode = m;
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').classList.add('show');
+  document.getElementById('modeTag').textContent = (m === 'admin' ? '관리자 (0630)' : '회원');
+  document.getElementById('moneyCard').style.display = (m === 'admin' ? 'block' : 'none');
+  document.getElementById('timerCard').style.display = (m === 'admin' ? 'block' : 'none');
+  document.getElementById('closeBtn').style.display = (m === 'admin' ? 'block' : 'none');
+  viewY = today.getFullYear(); viewM = today.getMonth();
+  render();
+}
+function goHome() {
+  mode = null;
+  document.getElementById('result').classList.remove('show');
+  document.getElementById('confirm').classList.remove('show');
+  document.getElementById('big').classList.remove('show');
+  document.getElementById('app').classList.remove('show');
+  document.getElementById('login').style.display = 'flex';
+  pw = ''; drawDots(); loginMsg.textContent = '';
+}
+document.getElementById('closeBtn').onclick = goHome;   // 0630: X 누르면 처음 화면으로
+
+/* 관리자 모드 사이트(admin.html)로 이동 — 두 사이트가 같은 자료를 씁니다 */
+const ADMIN_PAGE = 'admin.html';
+document.getElementById('toAdmin').onclick = () => { location.href = ADMIN_PAGE; };
+
+/* 관리자 모드 사이트에서 돈을 넣으면 이 화면도 바로 반영 */
+window.addEventListener('storage', e => { if (e.key === KEY) { data = load(); render(); } });
+document.addEventListener('visibilitychange', () => { if (!document.hidden) { data = load(); render(); } });
+
+/* ================= 출석 (0220 / 0511 / 0304) ================= */
+let backTimer = null;
+function doAttendance(who) {
+  data = load();                 // 관리자 사이트에서 넣은 돈까지 반영해서 계산
+  const a = acc(who);
+  const box = document.getElementById('resultBox');
+  const inner = document.getElementById('resultInner');
+  const note = document.getElementById('backNote');
+  const cal = document.getElementById('resultCal');
+
+  // 돈이 없거나 안 넣었으면 → 삐이익
+  if (a.balance < PRICE) {
+    beep();
+    box.className = 'result-box fail';
+    inner.innerHTML = '<div class="beep-text">삐 이 익 !</div>' +
+      '<div class="sub" style="margin-top:12px">' + INFO[who].emoji + ' ' + INFO[who].name + '(' + who + ') 회원님, 돈이 없어서 출석할 수 없습니다.' +
+      '<br>남은 금액: <b>' + won(a.balance) + '</b><br>관리자 모드 사이트에서 돈을 넣어 주세요.</div>';
+    cal.innerHTML = '';
+  } else {
+    // 차감 + 오늘 출석 기록 (그 회원 것만)
+    a.balance -= PRICE;
+    const k = ymd(new Date());
+    a.days[k] = (a.days[k] || 0) + 1;
+    save();
+
+    box.className = 'result-box ok';
+    inner.innerHTML =
+      '<div class="big">출석 완료! ' + INFO[who].emoji + '</div>' +
+      '<div class="sub">' + INFO[who].name + '(' + who + ') 회원님, 오늘도 화이팅입니다!</div>' +
+      '<div class="count">남은 출석 횟수 : ' + countOf(who) + '회</div>' +
+      '<div class="sub" style="margin-bottom:0">남은 금액 : <b>' + won(a.balance) + '</b> (1회 ' + won(PRICE) + ')</div>';
+    viewY = today.getFullYear(); viewM = today.getMonth();
+    buildCalendar(cal, viewY, viewM, who);
+  }
+
+  document.getElementById('result').classList.add('show');
+
+  // 회원 비밀번호는 바로 처음 화면으로 돌아감
+  let left = 5;
+  note.textContent = left + '초 뒤에 처음 화면으로 돌아갑니다 (아무 곳이나 누르면 바로 이동)';
+  clearInterval(backTimer);
+  backTimer = setInterval(() => {
+    left--;
+    if (left <= 0) { clearInterval(backTimer); goHome(); }
+    else note.textContent = left + '초 뒤에 처음 화면으로 돌아갑니다 (아무 곳이나 누르면 바로 이동)';
+  }, 1000);
+}
+document.getElementById('result').onclick = () => { clearInterval(backTimer); goHome(); };
+
+/* ================= 돈 넣기는 관리자 모드 사이트에서만 ================= */
+document.getElementById('goAdminBtn').onclick = () => { location.href = ADMIN_PAGE; };
+/* ===== 전체 초기화: '진짜 할까요?' → 네 / 아니요 ===== */
+const confirmBox = document.getElementById('confirm');
+
+document.getElementById('resetBtn').onclick = () => {
+  const totalDays = MEMBERS.reduce((s, p) => s + Object.keys(acc(p).days).length, 0);
+  const totalMoney = MEMBERS.reduce((s, p) => s + acc(p).balance, 0);
+  document.getElementById('confirmDesc').innerHTML =
+    '전체 초기화를 하면 <b>' + MEMBERS.join(' / ') + '</b> 회원 모두의<br>' +
+    '<b>출석한 기록(' + totalDays + '일)</b>과 <b>돈(' + won(totalMoney) + ')</b>이<br>' +
+    '모두 사라지고 되돌릴 수 없습니다.';
+  confirmBox.classList.add('show');
+};
+
+document.getElementById('yesBtn').onclick = () => {      // 네 → 전체 초기화 (돈 + 출석 전부)
+  const keepLockers = data.lockers;                     // 사물함 이름은 그대로 둠
+  data = emptyData(); data.lockers = keepLockers;
+  save(); render();
+  confirmBox.classList.remove('show');
+  toast('전체 초기화되었습니다 (돈과 출석 기록 모두 0)');
+};
+
+document.getElementById('noBtn').onclick = () => {       // 아니요 → 아무것도 안 함
+  confirmBox.classList.remove('show');
+  toast('초기화하지 않았습니다');
+};
+
+confirmBox.onclick = e => { if (e.target === confirmBox) confirmBox.classList.remove('show'); };
+
+function toast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+/* ================= 운동 타이머 (0630 화면) ================= */
+let tSet = 0, tLeft = 0, tTimer = null;
+const timerView = document.getElementById('timerView');
+const timerBar = document.getElementById('timerBar');
+
+function fmt(s) {
+  const m = Math.floor(s / 60), ss = s % 60;
+  return String(m).padStart(2,'0') + ':' + String(ss).padStart(2,'0');
+}
+function drawTimer() {
+  timerView.textContent = fmt(tLeft);
+  timerBar.style.width = (tSet > 0 ? (tLeft / tSet * 100) : 0) + '%';
+}
+function timerStop() { clearInterval(tTimer); tTimer = null; timerView.classList.remove('run'); }
+
+function setTime(sec) {
+  timerStop();
+  timerView.classList.remove('done');
+  tSet = tLeft = Math.max(0, Math.min(sec, 60 * 180));   // 최대 3시간
+  drawTimer();
+}
+function timerStart() {
+  if (tLeft <= 0) { toast('시간을 먼저 맞춰 주세요'); return; }
+  if (tTimer) return;                                    // 이미 가는 중
+  timerView.classList.add('run');
+  timerView.classList.remove('done');
+  tTimer = setInterval(() => {
+    tLeft--;
+    drawTimer();
+    if (tLeft <= 0) {
+      timerStop();
+      timerView.classList.add('done');
+      alarm();
+      toast('⏰ 시간이 다 됐습니다!');
+    }
+  }, 1000);
+}
+
+document.querySelectorAll('.t-preset').forEach(b => b.onclick = () => {
+  setTime(parseInt(b.dataset.sec, 10));
+  toast(b.textContent + ' 으로 맞췄습니다 (시작을 누르세요)');
+});
+document.getElementById('setTimeBtn').onclick = () => {
+  const m = parseInt(document.getElementById('minInput').value, 10) || 0;
+  const s = parseInt(document.getElementById('secInput').value, 10) || 0;
+  if (m <= 0 && s <= 0) { toast('분 또는 초를 입력해 주세요'); return; }
+  setTime(m * 60 + s);
+  toast(fmt(tLeft) + ' 으로 맞췄습니다 (시작을 누르세요)');
+};
+document.getElementById('startBtn').onclick = timerStart;
+document.getElementById('pauseBtn').onclick = () => {
+  if (!tTimer) { toast('가고 있는 타이머가 없습니다'); return; }
+  timerStop(); toast('일시정지 (' + fmt(tLeft) + ')');
+};
+document.getElementById('stopBtn').onclick = () => {
+  timerStop(); stopAlarm(); tSet = 0; tLeft = 0;
+  timerView.classList.remove('done');
+  drawTimer(); toast('타이머를 초기화했습니다');
+};
+
+/* 시간 다 되면 울리는 알람 (띠리링 띠리링 — 크게, 8번 반복) */
+let alarmCtx = null, alarmTimer = null;
+function stopAlarm() {
+  clearTimeout(alarmTimer); alarmTimer = null;
+  if (alarmCtx) { try { alarmCtx.close(); } catch (e) {} alarmCtx = null; }
+}
+function alarm() {
+  stopAlarm();
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    alarmCtx = ctx;
+    const master = ctx.createGain();
+    master.gain.value = 0.95;                 // 크게!
+    master.connect(ctx.destination);
+
+    const NOTES = [1046, 1318, 1568];         // 띠 - 리 - 링
+    const RINGS = 8;                          // 띠리링 8번
+    for (let r = 0; r < RINGS; r++) {
+      NOTES.forEach((f, i) => {
+        const t = ctx.currentTime + r * 0.75 + i * 0.13;
+        const osc = ctx.createOscillator(), g = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(f, t);
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(1, t + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + 0.15);
+        osc.connect(g); g.connect(master);
+        osc.start(t); osc.stop(t + 0.17);
+      });
+    }
+    alarmTimer = setTimeout(stopAlarm, RINGS * 750 + 600);
+  } catch (e) {}
+}
+timerView.onclick = () => { if (alarmCtx) { stopAlarm(); toast('알람을 껐습니다'); } };
+
+/* ================= 달력 ================= */
+const DOW = ['일','월','화','수','목','금','토'];
+
+/* who: 회원 비번 하나 → 그 회원만 / null → 세 명 모두 (사자·돼지·토끼) */
+function marksFor(key, who) {
+  const list = who ? [who] : MEMBERS;
+  let html = '';
+  list.forEach(p => {
+    const n = acc(p).days[key];
+    if (n) html += INFO[p].emoji + (n > 1 ? '×' + n : '');
+  });
+  return html;
+}
+function buildCalendar(grid, y, m, who) {
+  grid.innerHTML = '';
+  DOW.forEach(d => {
+    const e = document.createElement('div');
+    e.className = 'dow'; e.textContent = d;
+    grid.appendChild(e);
+  });
+  const first = new Date(y, m, 1).getDay();
+  const last = new Date(y, m + 1, 0).getDate();
+  for (let i = 0; i < first; i++) {
+    const e = document.createElement('div'); e.className = 'day empty'; grid.appendChild(e);
+  }
+  const todayKey = ymd(today);
+  for (let d = 1; d <= last; d++) {
+    const key = y + '-' + String(m+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    const e = document.createElement('div');
+    e.className = 'day';
+    if (key === todayKey) e.classList.add('today');
+    const marks = marksFor(key, who);
+    if (marks) e.classList.add('att');
+    e.innerHTML = d + (marks ? '<div class="mark">' + marks + '</div>' : '');
+    grid.appendChild(e);
+  }
+}
+
+document.getElementById('prevM').onclick = () => { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); };
+document.getElementById('nextM').onclick = () => { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); };
+
+/* 회원 카드 (이름 / 생일 / 번호 / 남은돈) */
+function renderCards() {
+  const box = document.getElementById('memberCards');
+  box.innerHTML = '';
+  MEMBERS.forEach(p => {
+    const i = INFO[p], a = acc(p);
+    const c = document.createElement('button');
+    c.className = 'mcard' + (p === viewPw ? ' on' : '');
+    c.innerHTML =
+      '<div class="head"><span class="emoji">' + i.emoji + '</span><span class="pwno">' + p + '</span></div>' +
+      '<div class="row">이름 : <b>' + i.name + '</b></div>' +
+      '<div class="row">생일 : <b>' + i.birth + '</b></div>' +
+      '<div class="row">번호 : <b>' + i.no + '</b></div>' +
+      '<div class="money">남은돈 : ' + won(a.balance) + ' <small>(' + countOf(p) + '회)</small></div>';
+    c.onclick = () => { viewPw = (viewPw === p ? null : p); render(); };   // 다시 누르면 모두 보기
+    c.ondblclick = () => showBig(p);                                       // 두 번 누르면 크게 보기
+    box.appendChild(c);
+  });
+}
+
+/* 카드 두 번 누르면 그 회원을 크게 보여 줌 */
+function monthCount(p, y, m) {
+  const pre = y + '-' + String(m+1).padStart(2,'0') + '-';
+  return Object.keys(acc(p).days).filter(k => k.startsWith(pre)).reduce((s,k) => s + acc(p).days[k], 0);
+}
+function showBig(p) {
+  const i = INFO[p], a = acc(p);
+  document.getElementById('bigBox').innerHTML =
+    '<div class="big-emoji">' + i.emoji + '</div>' +
+    '<div class="big-name">' + i.name + '</div>' +
+    '<div class="big-pw">' + p + ' 회원 · ' + i.animal + '</div>' +
+    '<div class="big-rows">' +
+      '<div class="big-row">이름 <b>' + i.name + '</b></div>' +
+      '<div class="big-row">생일 <b>' + i.birth + '</b></div>' +
+      '<div class="big-row">번호 <b>' + i.no + '</b></div>' +
+      '<div class="big-row money">남은돈 <b>' + won(a.balance) + '</b></div>' +
+      '<div class="big-row">남은 출석 횟수 <b>' + countOf(p) + '회</b></div>' +
+      '<div class="big-row">이번 달 출석 <b>' + monthCount(p, viewY, viewM) + '번</b></div>' +
+    '</div>' +
+    '<div class="cal-head"><button class="cal-nav" id="bigPrev">‹</button>' +
+    '<div class="m">' + viewY + '년 ' + (viewM + 1) + '월 · ' + i.name + '</div>' +
+    '<button class="cal-nav" id="bigNext">›</button></div>' +
+    '<div class="grid" id="bigCal"></div>' +
+    '<button class="btn big-close" id="bigClose" style="margin-top:16px">닫기</button>';
+  buildCalendar(document.getElementById('bigCal'), viewY, viewM, p);
+  document.getElementById('bigClose').onclick = closeBig;
+  document.getElementById('bigPrev').onclick = () => { viewM--; if (viewM < 0) { viewM = 11; viewY--; } render(); showBig(p); };
+  document.getElementById('bigNext').onclick = () => { viewM++; if (viewM > 11) { viewM = 0; viewY++; } render(); showBig(p); };
+  document.getElementById('big').classList.add('show');
+}
+function closeBig() { document.getElementById('big').classList.remove('show'); }
+document.getElementById('big').onclick = e => { if (e.target.id === 'big') closeBig(); };
+
+function renderLegend() {
+  document.getElementById('legend').innerHTML =
+    MEMBERS.map(p => INFO[p].emoji + ' <b>' + p + ' ' + INFO[p].name + '</b>(' + INFO[p].animal + ')').join(' · ') +
+    '<br>표시가 있는 날 = 그 회원이 출석한 날' +
+    (viewPw ? ' · 지금은 <b>' + INFO[viewPw].name + '</b> 회원만 보는 중 (카드를 다시 누르면 모두 보기)' : '');
+}
+
+function render() {
+  renderCards();
+  renderLegend();
+  document.getElementById('calTitle').textContent =
+    viewY + '년 ' + (viewM + 1) + '월 · ' + (viewPw ? viewPw + ' ' + INFO[viewPw].name : '모든 회원');
+  buildCalendar(document.getElementById('calGrid'), viewY, viewM, viewPw);
+}
+render();
+drawDots();
+drawTimer();
+</script>
+</body>
+</html>
