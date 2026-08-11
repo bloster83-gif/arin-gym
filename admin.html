@@ -354,6 +354,19 @@
     </div>
 
     <div class="card">
+      <h2>💾 기록 지키기 (돈이 사라졌을 때)</h2>
+      <div class="hint" style="margin:0 0 12px 2px">
+        기록은 이 기기의 브라우저 안에만 저장됩니다. 파일로 저장해 두면 <b>다른 기기로 옮기거나 되살릴 수</b> 있습니다.
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btn green" id="exportBtn" style="flex:1">📥 파일로 저장(백업)</button>
+        <button class="btn" id="importBtn" style="flex:1">📂 파일에서 불러오기</button>
+      </div>
+      <input type="file" id="importFile" accept="application/json,.json" style="display:none">
+      <div class="hint" id="savedInfo" style="margin:12px 0 0 2px"></div>
+    </div>
+
+    <div class="card">
       <h2>🗄 사물함</h2>
       <div class="hint" style="margin:0 0 12px 2px">A부터 U까지 21칸 · 들어가서 네모를 <b>두 번 누르면</b> 이름을 저장할 수 있습니다.</div>
       <button class="btn" id="openLockers" style="width:100%">사물함 들어가기 →</button>
@@ -445,6 +458,7 @@
 <script>
 /* ================= 대기 화면(index.html)과 똑같은 자료를 씁니다 ================= */
 const KEY = 'arin_gym_v2';                 // 대기 사이트(index.html)와 같은 저장소
+const BACKUP_KEY = 'arin_gym_v2_backup';   // 같은 내용을 한 번 더 저장 (안전용)
 const OLD_KEYS = ['arin_gym_v1', 'arin_boxing_club_v1'];
 const WAIT_PAGE = 'index.html';            // 대기(출석) 사이트
 const PRICE = 1000;
@@ -465,29 +479,41 @@ function emptyData() {
   MEMBERS.forEach(p => d.accounts[p] = { balance: 0, days: {} });
   return d;
 }
+function read(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
+
 function load() {
   const fresh = emptyData();
-  try {
-    const cur = JSON.parse(localStorage.getItem(KEY));
-    if (cur && cur.accounts) {
-      MEMBERS.forEach(p => {
-        const a = cur.accounts[p];
-        if (a && typeof a.balance === 'number') fresh.accounts[p] = { balance: a.balance, days: a.days || {} };
-      });
-      if (cur.lockers && typeof cur.lockers === 'object') fresh.lockers = cur.lockers;
+  const a = read(KEY), b = read(BACKUP_KEY);
+  /* 한쪽이 지워져도 남은 쪽(더 최근 것)으로 살림 */
+  const cur = (a && b) ? (((b.updatedAt || 0) > (a.updatedAt || 0)) ? b : a) : (a || b);
+  if (cur && cur.accounts) {
+    MEMBERS.forEach(p => {
+      const x = cur.accounts[p];
+      if (x && typeof x.balance === 'number') fresh.accounts[p] = { balance: x.balance, days: x.days || {} };
+    });
+    if (cur.lockers && typeof cur.lockers === 'object') fresh.lockers = cur.lockers;
+    fresh.updatedAt = cur.updatedAt || 0;
+    return fresh;
+  }
+  for (const k of OLD_KEYS) {
+    const old = read(k);
+    if (old && typeof old.balance === 'number') {
+      fresh.accounts['0220'] = { balance: old.balance, days: old.days || {} };
       return fresh;
     }
-    for (const k of OLD_KEYS) {
-      const old = JSON.parse(localStorage.getItem(k));
-      if (old && typeof old.balance === 'number') {
-        fresh.accounts['0220'] = { balance: old.balance, days: old.days || {} };
-        return fresh;
-      }
-    }
-  } catch (e) {}
+  }
   return fresh;
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(data)); }
+function save() {
+  data.updatedAt = new Date().getTime();
+  const s = JSON.stringify(data);
+  try {
+    localStorage.setItem(KEY, s);
+    localStorage.setItem(BACKUP_KEY, s);   // 두 군데에 저장 (하나 지워져도 살아남음)
+  } catch (e) {
+    alert('이 브라우저에서 저장이 안 됩니다.\n(시크릿 모드이거나 저장 공간이 막혀 있으면 돈이 사라질 수 있어요)');
+  }
+}
 
 let data = load();
 let viewPw = null;                 // null = 모든 회원 달력 같이 보기
@@ -682,6 +708,51 @@ document.getElementById('noBtn').onclick = () => {
   toast('초기화하지 않았습니다');
 };
 confirmBox.onclick = e => { if (e.target === confirmBox) confirmBox.classList.remove('show'); };
+
+/* ================= 백업 / 불러오기 ================= */
+document.getElementById('exportBtn').onclick = () => {
+  const s = JSON.stringify(data, null, 1);
+  const blob = new Blob([s], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const d = new Date();
+  const stamp = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  const a = document.createElement('a');
+  a.href = url; a.download = '아린헬스장_백업_' + stamp + '.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  toast('백업 파일을 저장했습니다');
+};
+document.getElementById('importBtn').onclick = () => document.getElementById('importFile').click();
+document.getElementById('importFile').onchange = e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const got = JSON.parse(r.result);
+      if (!got || !got.accounts) throw new Error('형식이 다릅니다');
+      const fresh = emptyData();
+      MEMBERS.forEach(p => {
+        const x = got.accounts[p];
+        if (x && typeof x.balance === 'number') fresh.accounts[p] = { balance: x.balance, days: x.days || {} };
+      });
+      if (got.lockers && typeof got.lockers === 'object') fresh.lockers = got.lockers;
+      data = fresh; save(); render(); showSavedInfo();
+      toast('불러왔습니다 — ' + MEMBERS.map(p => p + ' ' + won(acc(p).balance)).join(' · '));
+    } catch (err) {
+      toast('이 파일은 읽을 수 없습니다 (백업 파일이 맞는지 확인해 주세요)');
+    }
+    e.target.value = '';
+  };
+  r.readAsText(file);
+};
+function showSavedInfo() {
+  const t = data.updatedAt ? new Date(data.updatedAt) : null;
+  document.getElementById('savedInfo').textContent = t
+    ? '마지막 저장 : ' + t.getFullYear() + '년 ' + (t.getMonth()+1) + '월 ' + t.getDate() + '일 ' +
+      String(t.getHours()).padStart(2,'0') + ':' + String(t.getMinutes()).padStart(2,'0')
+    : '아직 저장된 기록이 없습니다';
+}
 
 /* ================= 사물함 (A ~ U) — 두 번 누르면 이름 저장 ================= */
 let editingL = null;
@@ -907,6 +978,7 @@ function renderLegend() {
 function render() {
   renderCards();
   renderLegend();
+  showSavedInfo();
   document.getElementById('calTitle').textContent =
     viewY + '년 ' + (viewM + 1) + '월 · ' + (viewPw ? viewPw + ' ' + INFO[viewPw].name : '모든 회원');
   buildCalendar(document.getElementById('calGrid'), viewY, viewM, viewPw);
