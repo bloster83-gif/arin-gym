@@ -106,6 +106,68 @@
   .key.small { font-size: 15px; }
 
   .msg { color: #fff; font-weight: 800; height: 24px; margin-top: 14px; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+  /* 오른쪽 위 회원가입 버튼 */
+  #joinBtn {
+    position: absolute; top: 16px; right: 16px; z-index: 3;
+    padding: 12px 20px; border-radius: 999px; border: 2px solid rgba(255,255,255,.5);
+    background: rgba(10,12,18,.55); backdrop-filter: blur(8px);
+    color: #fff; font-size: 15px; font-weight: 900; font-family: inherit; cursor: pointer;
+    box-shadow: 0 6px 20px rgba(0,0,0,.45);
+  }
+  #joinBtn:hover { background: rgba(75,59,255,.75); }
+
+  /* 회원가입 창 */
+  #join {
+    position: fixed; inset: 0; z-index: 40; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.72); padding: 14px;
+  }
+  #join.show { display: flex; }
+  .join-box {
+    background: #fff; border-radius: 24px; padding: 24px 20px;
+    width: 560px; max-width: 96vw; max-height: 94vh; overflow-y: auto; animation: pop .25s;
+  }
+  .join-box h3 { font-size: 24px; font-weight: 900; color: #222; text-align: center; margin-bottom: 4px; }
+  .join-box .sub2 { text-align: center; color: #888; font-size: 14px; margin-bottom: 18px; }
+  .join-sec { font-size: 15px; font-weight: 900; color: #333; margin: 4px 0 10px; }
+
+  .animals { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 8px; margin-bottom: 18px; }
+  .animal {
+    border: 2px solid #e8eaf2; border-radius: 14px; background: #fff; cursor: pointer;
+    padding: 8px 2px; font-family: inherit; text-align: center;
+  }
+  .animal .ae { font-size: 26px; line-height: 1; }
+  .animal .an { display: block; font-size: 11px; font-weight: 800; color: #777; margin-top: 4px; }
+  .animal.on { border-color: #4b3bff; background: #f1efff; box-shadow: 0 4px 12px rgba(75,59,255,.2); }
+  .animal.taken { background: #f2f3f7; border-color: #e8eaf2; cursor: not-allowed; opacity: .55; }
+  .animal.taken .an { color: #ff3b5c; }
+
+  .join-form input {
+    width: 100%; padding: 13px 14px; font-size: 16px; font-family: inherit;
+    border: 2px solid #e3e5ee; border-radius: 12px; outline: none; margin-bottom: 10px;
+  }
+  .join-form input:focus { border-color: #4b3bff; }
+  .join-label { font-size: 14px; font-weight: 800; color: #444; margin-bottom: 6px; }
+  .faint { color: #b8bcc9; font-size: 12px; font-weight: 700; margin: -6px 0 12px 4px; }
+  .warn {
+    background: #fff2f4; border: 2px solid #ffd3da; color: #d8003c;
+    border-radius: 14px; padding: 12px 14px; font-size: 13px; font-weight: 800;
+    line-height: 1.6; margin: 4px 0 16px;
+  }
+  .join-btns { display: flex; gap: 10px; }
+  .join-btns .btn { flex: 1; padding: 15px 0; font-size: 17px; }
+
+  /* 로딩중 / 완료 */
+  .join-wait { text-align: center; padding: 26px 6px; }
+  .spinner {
+    width: 54px; height: 54px; margin: 0 auto 18px;
+    border: 6px solid #eceefa; border-top-color: #4b3bff; border-radius: 50%;
+    animation: spin .9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .join-wait .t { font-size: 22px; font-weight: 900; color: #333; }
+  .join-wait .d { font-size: 14px; color: #888; margin-top: 8px; line-height: 1.7; }
+  .done-mark { font-size: 66px; line-height: 1; margin-bottom: 10px; }
+
   .site-link {
     position: relative; z-index: 2; margin: 10px 0 0;
     color: rgba(255,255,255,.8); font-size: 13px; font-weight: 700;
@@ -425,6 +487,8 @@
   </svg>
   <div class="scrim"></div>
 
+  <button id="joinBtn">📝 회원가입</button>
+
   <!-- 간판 (전체화면에서도 절대 안 가려지게 그림이 아니라 글자로) -->
   <div class="signboard">
     <div class="k">💪 아린 헬스장</div>
@@ -518,6 +582,42 @@
   </div>
 </div>
 
+<!-- ================= 회원가입 ================= -->
+<div id="join">
+  <div class="join-box" id="joinBox">
+    <div id="joinForm">
+      <h3>📝 회원가입</h3>
+      <div class="sub2">쓰고 싶은 동물을 고르고 아래를 적어 주세요</div>
+
+      <div class="join-sec">1. 동물 고르기 (30가지 · 다른 분이 쓰는 동물은 못 고릅니다)</div>
+      <div class="animals" id="animalGrid"></div>
+
+      <div class="join-sec">2. 양식 적기</div>
+      <div class="join-form">
+        <div class="join-label">이름 :</div>
+        <input type="text" id="joinName" maxlength="10" placeholder="예) 이아솔">
+        <div class="join-label">생일 6자리 :</div>
+        <input type="text" id="joinBirth" inputmode="numeric" maxlength="6" placeholder="예) 170220">
+        <div class="join-label">번호 4자리 :</div>
+        <input type="text" id="joinPw" inputmode="numeric" maxlength="4" placeholder="예) 0220">
+        <div class="faint">번호 외워주세요</div>
+      </div>
+
+      <div class="warn">
+        경고 : 이미 회원인 분은 회원 정보랑 똑같이 적어주세요<br>
+        (이름 · 생일 · 번호가 모두 같으면 동물만 바뀝니다)
+      </div>
+
+      <div class="join-btns">
+        <button class="btn green" id="joinOk">확인</button>
+        <button class="btn gray" id="joinCancel">닫기</button>
+      </div>
+    </div>
+
+    <div id="joinWait" style="display:none"></div>
+  </div>
+</div>
+
 <!-- ================= 회원 크게 보기 (카드를 두 번 누르면 열림) ================= -->
 <div id="big">
   <div class="big-box" id="bigBox"></div>
@@ -544,19 +644,43 @@ const BACKUP_KEY = 'arin_gym_v2_backup';                   // 같은 내용을 �
 const OLD_KEYS = ['arin_gym_v1', 'arin_boxing_club_v1'];   // 예전 기록도 그대로 가져옴
 const PRICE = 1000;                        // 1일 출석 = 1000원
 const ADMIN_PW = '0630';                   // 관리자: 그냥 들어감 (돈 안 빠짐)
-const MEMBERS = ['0220', '0304', '0511'];  // 회원: 들어가면 출석 1회 = 1000원 차감
+/* 고를 수 있는 동물 30가지 */
+const ANIMALS = [
+  { e:'🦁', n:'사자' },   { e:'🐷', n:'돼지' },   { e:'🐰', n:'토끼' },   { e:'🐯', n:'호랑이' },
+  { e:'🐻', n:'곰' },     { e:'🐼', n:'판다' },   { e:'🦊', n:'여우' },   { e:'🐺', n:'늑대' },
+  { e:'🐶', n:'강아지' }, { e:'🐱', n:'고양이' }, { e:'🐭', n:'쥐' },     { e:'🐹', n:'햄스터' },
+  { e:'🐮', n:'소' },     { e:'🐴', n:'말' },     { e:'🐵', n:'원숭이' }, { e:'🦍', n:'고릴라' },
+  { e:'🐨', n:'코알라' }, { e:'🐸', n:'개구리' }, { e:'🐤', n:'병아리' }, { e:'🐔', n:'닭' },
+  { e:'🐧', n:'펭귄' },   { e:'🦉', n:'부엉이' }, { e:'🦅', n:'독수리' }, { e:'🦆', n:'오리' },
+  { e:'🐟', n:'물고기' }, { e:'🐬', n:'돌고래' }, { e:'🐳', n:'고래' },   { e:'🐙', n:'문어' },
+  { e:'🐢', n:'거북이' }, { e:'🦄', n:'유니콘' }
+];
 
-/* 회원 정보 (달력 표시: 0220 사자 / 0304 돼지 / 0511 토끼) */
-const INFO = {
-  '0220': { name: '이아솔', birth: '2017년 02월 20일', no: '0220@@', emoji: '🦁', animal: '사자' },
-  '0304': { name: '이지훈', birth: '1983년 03월 04일', no: '0304@@', emoji: '🐷', animal: '돼지' },
-  '0511': { name: '장혜진', birth: '1985년 05월 11일', no: '0511@@', emoji: '🐰', animal: '토끼' }
+/* 처음부터 있던 회원 (생일은 6자리) */
+const DEFAULT_MEMBERS = {
+  '0220': { name: '이아솔', birth: '170220', emoji: '🦁', animal: '사자',  at: 1 },
+  '0304': { name: '이지훈', birth: '830304', emoji: '🐷', animal: '돼지',  at: 2 },
+  '0511': { name: '장혜진', birth: '850511', emoji: '🐰', animal: '토끼',  at: 3 }
 };
 
 function emptyData() {
-  const d = { accounts: {}, lockers: {} };   // lockers = 관리자 사이트 사물함 (대기 화면에선 그대로 둠)
-  MEMBERS.forEach(p => d.accounts[p] = { balance: 0, days: {} });
+  const d = { members: JSON.parse(JSON.stringify(DEFAULT_MEMBERS)), accounts: {}, lockers: {} };
+  Object.keys(d.members).forEach(p => d.accounts[p] = { balance: 0, days: {} });
   return d;
+}
+
+/* 회원 번호 목록 (들어온 순서대로) */
+function memberList() {
+  return Object.keys(data.members).sort((a, b) => (data.members[a].at || 0) - (data.members[b].at || 0));
+}
+const M = p => data.members[p] || { name: '?', birth: '', emoji: '❓', animal: '' };
+
+/* 생일 6자리(YYMMDD) → 보기 좋은 글자 */
+function fmtBirth(b) {
+  if (!b || b.length !== 6) return b || '';
+  const yy = parseInt(b.slice(0,2), 10);
+  const year = (yy <= (new Date().getFullYear() % 100)) ? 2000 + yy : 1900 + yy;
+  return year + '년 ' + b.slice(2,4) + '월 ' + b.slice(4,6) + '일';
 }
 function read(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
 
@@ -566,9 +690,23 @@ function load() {
   /* 한쪽이 지워져도 남은 쪽(더 최근 것)으로 살림 */
   const cur = (a && b) ? (((b.updatedAt || 0) > (a.updatedAt || 0)) ? b : a) : (a || b);
   if (cur && cur.accounts) {
-    MEMBERS.forEach(p => {
+    /* 회원 명단 (회원가입으로 늘어난 사람까지) */
+    if (cur.members && typeof cur.members === 'object' && Object.keys(cur.members).length) {
+      fresh.members = {};
+      Object.keys(cur.members).forEach(p => {
+        const m = cur.members[p];
+        if (m && m.name) fresh.members[p] = {
+          name: m.name, birth: m.birth || '', emoji: m.emoji || '❓',
+          animal: m.animal || '', at: m.at || 0
+        };
+      });
+    }
+    fresh.accounts = {};
+    Object.keys(fresh.members).forEach(p => {
       const x = cur.accounts[p];
-      if (x && typeof x.balance === 'number') fresh.accounts[p] = { balance: x.balance, days: x.days || {} };
+      fresh.accounts[p] = (x && typeof x.balance === 'number')
+        ? { balance: x.balance, days: x.days || {} }
+        : { balance: 0, days: {} };
     });
     if (cur.lockers && typeof cur.lockers === 'object') fresh.lockers = cur.lockers;
     fresh.updatedAt = cur.updatedAt || 0;
@@ -650,7 +788,7 @@ function submitPw() {
   if (pw === ADMIN_PW) {                 // 0630 → 관리자 (그냥 들어감)
     pw = ''; drawDots(); loginMsg.textContent = '';
     openApp('admin');
-  } else if (MEMBERS.includes(pw)) {     // 0220 / 0511 / 0304 → 출석 (1000원 차감)
+  } else if (data.members[pw]) {         // 회원 번호 → 출석 (1000원 차감)
     const who = pw;
     pw = ''; drawDots(); loginMsg.textContent = '';
     doAttendance(who);
@@ -708,7 +846,7 @@ function doAttendance(who) {
     beep();
     box.className = 'result-box fail';
     inner.innerHTML = '<div class="beep-text">삐 이 익 !</div>' +
-      '<div class="sub" style="margin-top:12px">' + INFO[who].emoji + ' ' + INFO[who].name + '(' + who + ') 회원님, 돈이 없어서 출석할 수 없습니다.' +
+      '<div class="sub" style="margin-top:12px">' + M(who).emoji + ' ' + M(who).name + '(' + who + ') 회원님, 돈이 없어서 출석할 수 없습니다.' +
       '<br>남은 금액: <b>' + won(a.balance) + '</b><br>관리자 모드 사이트에서 돈을 넣어 주세요.</div>';
     cal.innerHTML = '';
   } else {
@@ -720,8 +858,8 @@ function doAttendance(who) {
 
     box.className = 'result-box ok';
     inner.innerHTML =
-      '<div class="big">출석 완료! ' + INFO[who].emoji + '</div>' +
-      '<div class="sub">' + INFO[who].name + '(' + who + ') 회원님, 오늘도 화이팅입니다!</div>' +
+      '<div class="big">출석 완료! ' + M(who).emoji + '</div>' +
+      '<div class="sub">' + M(who).name + '(' + who + ') 회원님, 오늘도 화이팅입니다!</div>' +
       '<div class="count">남은 출석 횟수 : ' + countOf(who) + '회</div>' +
       '<div class="sub" style="margin-bottom:0">남은 금액 : <b>' + won(a.balance) + '</b> (1회 ' + won(PRICE) + ')</div>';
     viewY = today.getFullYear(); viewM = today.getMonth();
@@ -742,24 +880,120 @@ function doAttendance(who) {
 }
 document.getElementById('result').onclick = () => { clearInterval(backTimer); goHome(); };
 
+/* ================= 회원가입 (동물 30가지) ================= */
+let pickedAnimal = null;
+
+function whoUses(animalName) {                       // 그 동물을 쓰는 회원 찾기
+  return memberList().find(p => M(p).animal === animalName) || null;
+}
+function renderAnimals() {
+  const box = document.getElementById('animalGrid');
+  box.innerHTML = '';
+  ANIMALS.forEach(a => {
+    const owner = whoUses(a.n);
+    const b = document.createElement('button');
+    b.className = 'animal' + (pickedAnimal === a.n ? ' on' : '') + (owner ? ' taken' : '');
+    b.innerHTML = '<span class="ae">' + a.e + '</span><span class="an">' +
+      (owner ? M(owner).name + ' 쓰는 중' : a.n) + '</span>';
+    b.onclick = () => {
+      if (owner) { toast(a.e + ' ' + a.n + ' — ' + M(owner).name + ' 회원님이 쓰고 있어요 (다른 동물을 골라 주세요)'); return; }
+      pickedAnimal = a.n; renderAnimals();
+    };
+    box.appendChild(b);
+  });
+}
+function openJoin() {
+  pickedAnimal = null;
+  data = load();
+  document.getElementById('joinName').value = '';
+  document.getElementById('joinBirth').value = '';
+  document.getElementById('joinPw').value = '';
+  document.getElementById('joinForm').style.display = 'block';
+  document.getElementById('joinWait').style.display = 'none';
+  renderAnimals();
+  document.getElementById('join').classList.add('show');
+}
+function closeJoin() { document.getElementById('join').classList.remove('show'); }
+document.getElementById('joinBtn').onclick = openJoin;
+document.getElementById('joinCancel').onclick = closeJoin;
+document.getElementById('joinBirth').addEventListener('input', e => { e.target.value = e.target.value.replace(/[^0-9]/g,'').slice(0,6); });
+document.getElementById('joinPw').addEventListener('input', e => { e.target.value = e.target.value.replace(/[^0-9]/g,'').slice(0,4); });
+
+/* 확인 → 로딩중 → 완료 → 처음 화면 */
+document.getElementById('joinOk').onclick = () => {
+  const name = document.getElementById('joinName').value.trim();
+  const birth = document.getElementById('joinBirth').value.trim();
+  const npw = document.getElementById('joinPw').value.trim();
+
+  if (!pickedAnimal) { toast('동물을 하나 골라 주세요'); return; }
+  if (!name)               { toast('이름을 적어 주세요'); return; }
+  if (birth.length !== 6)  { toast('생일을 6자리로 적어 주세요 (예: 170220)'); return; }
+  if (npw.length !== 4)    { toast('번호를 4자리로 적어 주세요 (예: 0220)'); return; }
+  if (npw === ADMIN_PW)    { toast('0630은 관리자 번호라 쓸 수 없습니다'); return; }
+
+  const old = data.members[npw];
+  let mode2;
+  if (old) {                                          // 이미 있는 번호
+    if (old.name !== name || old.birth !== birth) {
+      toast('이미 쓰는 번호입니다 — 회원 정보(이름·생일)를 똑같이 적어 주세요');
+      return;
+    }
+    mode2 = 'change';                                 // 이름·생일·번호가 같으면 동물만 바꿈
+  } else {
+    mode2 = 'new';
+  }
+
+  const animal = ANIMALS.find(a => a.n === pickedAnimal);
+  showWait(name, animal, mode2, () => {
+    data = load();                                    // 저장 직전에 최신 내용 다시 읽기
+    if (mode2 === 'change') {
+      data.members[npw].emoji = animal.e;
+      data.members[npw].animal = animal.n;
+    } else {
+      data.members[npw] = { name: name, birth: birth, emoji: animal.e, animal: animal.n, at: new Date().getTime() };
+      data.accounts[npw] = { balance: 0, days: {} };
+    }
+    save();
+    render();
+  });
+};
+
+function showWait(name, animal, mode2, doSave) {
+  const form = document.getElementById('joinForm'), wait = document.getElementById('joinWait');
+  form.style.display = 'none';
+  wait.style.display = 'block';
+  wait.innerHTML = '<div class="join-wait"><div class="spinner"></div>' +
+    '<div class="t">로딩중...</div><div class="d">' + name + ' 님 정보를 확인하고 있어요</div></div>';
+
+  setTimeout(() => {
+    doSave();
+    wait.innerHTML = '<div class="join-wait"><div class="done-mark">' + animal.e + '</div>' +
+      '<div class="t" style="color:#24a05a">완료!</div>' +
+      '<div class="d">' + name + ' 님, ' + (mode2 === 'change'
+        ? '동물을 <b>' + animal.n + '</b>(으)로 바꿨습니다.'
+        : '회원가입이 됐습니다. 동물은 <b>' + animal.n + '</b>입니다.<br>번호를 꼭 외워 주세요!') +
+      '<br>잠시 뒤 처음 화면으로 돌아갑니다</div></div>';
+    setTimeout(() => { closeJoin(); goHome(); }, 1800);
+  }, 1600);
+}
+
 /* ================= 돈 넣기는 관리자 모드 사이트에서만 ================= */
 document.getElementById('goAdminBtn').onclick = () => { location.href = ADMIN_PAGE; };
 /* ===== 전체 초기화: '진짜 할까요?' → 네 / 아니요 ===== */
 const confirmBox = document.getElementById('confirm');
 
 document.getElementById('resetBtn').onclick = () => {
-  const totalDays = MEMBERS.reduce((s, p) => s + Object.keys(acc(p).days).length, 0);
-  const totalMoney = MEMBERS.reduce((s, p) => s + acc(p).balance, 0);
+  const totalDays = memberList().reduce((s, p) => s + Object.keys(acc(p).days).length, 0);
+  const totalMoney = memberList().reduce((s, p) => s + acc(p).balance, 0);
   document.getElementById('confirmDesc').innerHTML =
-    '전체 초기화를 하면 <b>' + MEMBERS.join(' / ') + '</b> 회원 모두의<br>' +
+    '전체 초기화를 하면 <b>' + memberList().join(' / ') + '</b> 회원 모두의<br>' +
     '<b>출석한 기록(' + totalDays + '일)</b>과 <b>돈(' + won(totalMoney) + ')</b>이<br>' +
-    '모두 사라지고 되돌릴 수 없습니다.';
+    '모두 사라지고 되돌릴 수 없습니다.<br>(회원 명단과 사물함 이름은 지워지지 않습니다)';
   confirmBox.classList.add('show');
 };
 
 document.getElementById('yesBtn').onclick = () => {      // 네 → 전체 초기화 (돈 + 출석 전부)
-  const keepLockers = data.lockers;                     // 사물함 이름은 그대로 둠
-  data = emptyData(); data.lockers = keepLockers;
+  memberList().forEach(p => data.accounts[p] = { balance: 0, days: {} });   // 회원·사물함은 그대로
   save(); render();
   confirmBox.classList.remove('show');
   toast('전체 초기화되었습니다 (돈과 출석 기록 모두 0)');
@@ -880,11 +1114,11 @@ const DOW = ['일','월','화','수','목','금','토'];
 
 /* who: 회원 비번 하나 → 그 회원만 / null → 세 명 모두 (사자·돼지·토끼) */
 function marksFor(key, who) {
-  const list = who ? [who] : MEMBERS;
+  const list = who ? [who] : memberList();
   let html = '';
   list.forEach(p => {
-    const n = acc(p).days[key];
-    if (n) html += INFO[p].emoji + (n > 1 ? '×' + n : '');
+    const n = acc(p) && acc(p).days[key];
+    if (n) html += M(p).emoji + (n > 1 ? '×' + n : '');
   });
   return html;
 }
@@ -920,15 +1154,15 @@ document.getElementById('nextM').onclick = () => { viewM++; if (viewM > 11) { vi
 function renderCards() {
   const box = document.getElementById('memberCards');
   box.innerHTML = '';
-  MEMBERS.forEach(p => {
-    const i = INFO[p], a = acc(p);
+  memberList().forEach(p => {
+    const i = M(p), a = acc(p);
     const c = document.createElement('button');
     c.className = 'mcard' + (p === viewPw ? ' on' : '');
     c.innerHTML =
       '<div class="head"><span class="emoji">' + i.emoji + '</span><span class="pwno">' + p + '</span></div>' +
       '<div class="row">이름 : <b>' + i.name + '</b></div>' +
-      '<div class="row">생일 : <b>' + i.birth + '</b></div>' +
-      '<div class="row">번호 : <b>' + i.no + '</b></div>' +
+      '<div class="row">생일 : <b>' + fmtBirth(i.birth) + '</b></div>' +
+      '<div class="row">번호 : <b>' + p + '@@</b></div>' +
       '<div class="money">남은돈 : ' + won(a.balance) + ' <small>(' + countOf(p) + '회)</small></div>';
     c.onclick = () => { viewPw = (viewPw === p ? null : p); render(); };   // 다시 누르면 모두 보기
     c.ondblclick = () => showBig(p);                                       // 두 번 누르면 크게 보기
@@ -942,15 +1176,15 @@ function monthCount(p, y, m) {
   return Object.keys(acc(p).days).filter(k => k.startsWith(pre)).reduce((s,k) => s + acc(p).days[k], 0);
 }
 function showBig(p) {
-  const i = INFO[p], a = acc(p);
+  const i = M(p), a = acc(p);
   document.getElementById('bigBox').innerHTML =
     '<div class="big-emoji">' + i.emoji + '</div>' +
     '<div class="big-name">' + i.name + '</div>' +
     '<div class="big-pw">' + p + ' 회원 · ' + i.animal + '</div>' +
     '<div class="big-rows">' +
       '<div class="big-row">이름 <b>' + i.name + '</b></div>' +
-      '<div class="big-row">생일 <b>' + i.birth + '</b></div>' +
-      '<div class="big-row">번호 <b>' + i.no + '</b></div>' +
+      '<div class="big-row">생일 <b>' + fmtBirth(i.birth) + '</b></div>' +
+      '<div class="big-row">번호 <b>' + p + '@@</b></div>' +
       '<div class="big-row money">남은돈 <b>' + won(a.balance) + '</b></div>' +
       '<div class="big-row">남은 출석 횟수 <b>' + countOf(p) + '회</b></div>' +
       '<div class="big-row">이번 달 출석 <b>' + monthCount(p, viewY, viewM) + '번</b></div>' +
@@ -971,16 +1205,16 @@ document.getElementById('big').onclick = e => { if (e.target.id === 'big') close
 
 function renderLegend() {
   document.getElementById('legend').innerHTML =
-    MEMBERS.map(p => INFO[p].emoji + ' <b>' + p + ' ' + INFO[p].name + '</b>(' + INFO[p].animal + ')').join(' · ') +
+    memberList().map(p => M(p).emoji + ' <b>' + p + ' ' + M(p).name + '</b>(' + M(p).animal + ')').join(' · ') +
     '<br>표시가 있는 날 = 그 회원이 출석한 날' +
-    (viewPw ? ' · 지금은 <b>' + INFO[viewPw].name + '</b> 회원만 보는 중 (카드를 다시 누르면 모두 보기)' : '');
+    (viewPw ? ' · 지금은 <b>' + M(viewPw).name + '</b> 회원만 보는 중 (카드를 다시 누르면 모두 보기)' : '');
 }
 
 function render() {
   renderCards();
   renderLegend();
   document.getElementById('calTitle').textContent =
-    viewY + '년 ' + (viewM + 1) + '월 · ' + (viewPw ? viewPw + ' ' + INFO[viewPw].name : '모든 회원');
+    viewY + '년 ' + (viewM + 1) + '월 · ' + (viewPw ? viewPw + ' ' + M(viewPw).name : '모든 회원');
   buildCalendar(document.getElementById('calGrid'), viewY, viewM, viewPw);
 }
 render();

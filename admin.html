@@ -462,21 +462,32 @@ const BACKUP_KEY = 'arin_gym_v2_backup';   // 같은 내용을 한 번 더 저�
 const OLD_KEYS = ['arin_gym_v1', 'arin_boxing_club_v1'];
 const WAIT_PAGE = 'index.html';            // 대기(출석) 사이트
 const PRICE = 1000;
-const MEMBERS = ['0220', '0304', '0511'];
 const ADMIN_PW = '0630@@';                 // 이 사이트 비밀번호
 
-/* 회원 정보 (달력 표시: 0220 사자 / 0304 돼지 / 0511 토끼) */
-const INFO = {
-  '0220': { name: '이아솔', birth: '2017년 02월 20일', no: '0220@@', emoji: '🦁', animal: '사자' },
-  '0304': { name: '이지훈', birth: '1983년 03월 04일', no: '0304@@', emoji: '🐷', animal: '돼지' },
-  '0511': { name: '장혜진', birth: '1985년 05월 11일', no: '0511@@', emoji: '🐰', animal: '토끼' }
+/* 처음부터 있던 회원 (생일은 6자리) — 회원가입한 사람은 저장소에 쌓입니다 */
+const DEFAULT_MEMBERS = {
+  '0220': { name: '이아솔', birth: '170220', emoji: '🦁', animal: '사자', at: 1 },
+  '0304': { name: '이지훈', birth: '830304', emoji: '🐷', animal: '돼지', at: 2 },
+  '0511': { name: '장혜진', birth: '850511', emoji: '🐰', animal: '토끼', at: 3 }
 };
+
+function memberList() {
+  return Object.keys(data.members).sort((a, b) => (data.members[a].at || 0) - (data.members[b].at || 0));
+}
+const M = p => data.members[p] || { name: '?', birth: '', emoji: '❓', animal: '' };
+
+function fmtBirth(b) {
+  if (!b || b.length !== 6) return b || '';
+  const yy = parseInt(b.slice(0,2), 10);
+  const year = (yy <= (new Date().getFullYear() % 100)) ? 2000 + yy : 1900 + yy;
+  return year + '년 ' + b.slice(2,4) + '월 ' + b.slice(4,6) + '일';
+}
 
 const LOCKERS = 'ABCDEFGHIJKLMNOPQRSTU'.split('');   // 사물함 A ~ U (21칸)
 
 function emptyData() {
-  const d = { accounts: {}, lockers: {} };
-  MEMBERS.forEach(p => d.accounts[p] = { balance: 0, days: {} });
+  const d = { members: JSON.parse(JSON.stringify(DEFAULT_MEMBERS)), accounts: {}, lockers: {} };
+  Object.keys(d.members).forEach(p => d.accounts[p] = { balance: 0, days: {} });
   return d;
 }
 function read(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } }
@@ -487,9 +498,23 @@ function load() {
   /* 한쪽이 지워져도 남은 쪽(더 최근 것)으로 살림 */
   const cur = (a && b) ? (((b.updatedAt || 0) > (a.updatedAt || 0)) ? b : a) : (a || b);
   if (cur && cur.accounts) {
-    MEMBERS.forEach(p => {
+    /* 회원 명단 (대기 사이트에서 회원가입한 사람까지 그대로 들어옴) */
+    if (cur.members && typeof cur.members === 'object' && Object.keys(cur.members).length) {
+      fresh.members = {};
+      Object.keys(cur.members).forEach(p => {
+        const m = cur.members[p];
+        if (m && m.name) fresh.members[p] = {
+          name: m.name, birth: m.birth || '', emoji: m.emoji || '❓',
+          animal: m.animal || '', at: m.at || 0
+        };
+      });
+    }
+    fresh.accounts = {};
+    Object.keys(fresh.members).forEach(p => {
       const x = cur.accounts[p];
-      if (x && typeof x.balance === 'number') fresh.accounts[p] = { balance: x.balance, days: x.days || {} };
+      fresh.accounts[p] = (x && typeof x.balance === 'number')
+        ? { balance: x.balance, days: x.days || {} }
+        : { balance: 0, days: {} };
     });
     if (cur.lockers && typeof cur.lockers === 'object') fresh.lockers = cur.lockers;
     fresh.updatedAt = cur.updatedAt || 0;
@@ -659,11 +684,11 @@ function showBanner(msg) {
 }
 function charge(amount, replace) {
   const who = pwInput.value.trim();
-  if (!MEMBERS.includes(who)) {
+  if (!data.members[who]) {
     beep();
     toast(who === '0630' || who === ADMIN_PW
-      ? '관리자 비밀번호에는 돈을 넣을 수 없어요 (0220 / 0304 / 0511)'
-      : '회원 비밀번호를 먼저 쓰세요 (0220 / 0304 / 0511)');
+      ? '관리자 비밀번호에는 돈을 넣을 수 없어요 (' + memberList().join(' / ') + ')'
+      : '회원 비밀번호를 먼저 쓰세요 (' + memberList().join(' / ') + ')');
     pwInput.focus(); return;
   }
   if (!amount || amount < 0) { toast('금액을 올바르게 입력해 주세요'); moneyInput.focus(); return; }
@@ -674,31 +699,30 @@ function charge(amount, replace) {
   save();
   viewPw = who; render();
   moneyInput.value = '';
-  toast(INFO[who].emoji + ' ' + INFO[who].name + '(' + who + ') 회원에게 ' + won(amount) + (replace ? ' 으로 설정했습니다' : ' 넣었습니다'));
-  if (a.balance >= PRICE) showBanner(INFO[who].name + ' 회원님이 운동을 더할 수 있습니다');
+  toast(M(who).emoji + ' ' + M(who).name + '(' + who + ') 회원에게 ' + won(amount) + (replace ? ' 으로 설정했습니다' : ' 넣었습니다'));
+  if (a.balance >= PRICE) showBanner(M(who).name + ' 회원님이 운동을 더할 수 있습니다');
 }
 document.getElementById('addBtn').onclick = () => charge(parseInt(moneyInput.value, 10), false);
 document.getElementById('setBtn').onclick = () => charge(parseInt(moneyInput.value, 10), true);
 document.querySelectorAll('.q-amt').forEach(b => b.onclick = () => { moneyInput.value = b.dataset.amt; });
 pwInput.addEventListener('input', () => {
   pwInput.value = pwInput.value.replace(/[^0-9]/g, '').slice(0, 4);
-  if (MEMBERS.includes(pwInput.value)) { viewPw = pwInput.value; render(); }
+  if (data.members[pwInput.value]) { viewPw = pwInput.value; render(); }
 });
 
 /* ================= 전체 초기화 ================= */
 const confirmBox = document.getElementById('confirm');
 document.getElementById('resetBtn').onclick = () => {
-  const totalDays = MEMBERS.reduce((s, p) => s + Object.keys(acc(p).days).length, 0);
-  const totalMoney = MEMBERS.reduce((s, p) => s + acc(p).balance, 0);
+  const totalDays = memberList().reduce((s, p) => s + Object.keys(acc(p).days).length, 0);
+  const totalMoney = memberList().reduce((s, p) => s + acc(p).balance, 0);
   document.getElementById('confirmDesc').innerHTML =
-    '전체 초기화를 하면 <b>' + MEMBERS.join(' / ') + '</b> 회원 모두의<br>' +
+    '전체 초기화를 하면 <b>' + memberList().join(' / ') + '</b> 회원 모두의<br>' +
     '<b>출석한 기록(' + totalDays + '일)</b>과 <b>돈(' + won(totalMoney) + ')</b>이<br>' +
-    '모두 사라지고 되돌릴 수 없습니다.<br>대기 화면에서도 똑같이 지워집니다.<br>(사물함 이름은 지워지지 않습니다)';
+    '모두 사라지고 되돌릴 수 없습니다.<br>대기 화면에서도 똑같이 지워집니다.<br>(회원 명단과 사물함 이름은 지워지지 않습니다)';
   confirmBox.classList.add('show');
 };
 document.getElementById('yesBtn').onclick = () => {
-  const keepLockers = data.lockers;          // 사물함 이름은 그대로 둠
-  data = emptyData(); data.lockers = keepLockers;
+  memberList().forEach(p => data.accounts[p] = { balance: 0, days: {} });   // 회원·사물함은 그대로
   save(); render();
   confirmBox.classList.remove('show');
   toast('전체 초기화되었습니다 (돈과 출석 기록 모두 0)');
@@ -732,13 +756,23 @@ document.getElementById('importFile').onchange = e => {
       const got = JSON.parse(r.result);
       if (!got || !got.accounts) throw new Error('형식이 다릅니다');
       const fresh = emptyData();
-      MEMBERS.forEach(p => {
+      if (got.members && Object.keys(got.members).length) {
+        fresh.members = {};
+        Object.keys(got.members).forEach(p => {
+          const m = got.members[p];
+          if (m && m.name) fresh.members[p] = {
+            name: m.name, birth: m.birth || '', emoji: m.emoji || '❓', animal: m.animal || '', at: m.at || 0
+          };
+        });
+      }
+      fresh.accounts = {};
+      Object.keys(fresh.members).forEach(p => {
         const x = got.accounts[p];
-        if (x && typeof x.balance === 'number') fresh.accounts[p] = { balance: x.balance, days: x.days || {} };
+        fresh.accounts[p] = (x && typeof x.balance === 'number') ? { balance: x.balance, days: x.days || {} } : { balance: 0, days: {} };
       });
       if (got.lockers && typeof got.lockers === 'object') fresh.lockers = got.lockers;
       data = fresh; save(); render(); showSavedInfo();
-      toast('불러왔습니다 — ' + MEMBERS.map(p => p + ' ' + won(acc(p).balance)).join(' · '));
+      toast('불러왔습니다 — ' + memberList().map(p => p + ' ' + won(acc(p).balance)).join(' · '));
     } catch (err) {
       toast('이 파일은 읽을 수 없습니다 (백업 파일이 맞는지 확인해 주세요)');
     }
@@ -878,11 +912,11 @@ timerView.onclick = () => { if (alarmCtx) { stopAlarm(); toast('알람을 껐습
 const DOW = ['일','월','화','수','목','금','토'];
 /* who: 회원 비번 하나 → 그 회원만 / null → 세 명 모두 (사자·돼지·토끼) */
 function marksFor(key, who) {
-  const list = who ? [who] : MEMBERS;
+  const list = who ? [who] : memberList();
   let html = '';
   list.forEach(p => {
-    const n = acc(p).days[key];
-    if (n) html += INFO[p].emoji + (n > 1 ? '×' + n : '');
+    const n = acc(p) && acc(p).days[key];
+    if (n) html += M(p).emoji + (n > 1 ? '×' + n : '');
   });
   return html;
 }
@@ -916,15 +950,15 @@ document.getElementById('nextM').onclick = () => { viewM++; if (viewM > 11) { vi
 function renderCards() {
   const box = document.getElementById('memberCards');
   box.innerHTML = '';
-  MEMBERS.forEach(p => {
-    const i = INFO[p], a = acc(p);
+  memberList().forEach(p => {
+    const i = M(p), a = acc(p);
     const c = document.createElement('button');
     c.className = 'mcard' + (p === viewPw ? ' on' : '');
     c.innerHTML =
       '<div class="head"><span class="emoji">' + i.emoji + '</span><span class="pwno">' + p + '</span></div>' +
       '<div class="row">이름 : <b>' + i.name + '</b></div>' +
-      '<div class="row">생일 : <b>' + i.birth + '</b></div>' +
-      '<div class="row">번호 : <b>' + i.no + '</b></div>' +
+      '<div class="row">생일 : <b>' + fmtBirth(i.birth) + '</b></div>' +
+      '<div class="row">번호 : <b>' + p + '@@</b></div>' +
       '<div class="money">남은돈 : ' + won(a.balance) + ' <small>(' + countOf(p) + '회)</small></div>';
     c.onclick = () => {
       if (viewPw === p) { viewPw = null; }        // 다시 누르면 모두 보기
@@ -938,15 +972,15 @@ function renderCards() {
 
 /* 카드 두 번 누르면 그 회원을 크게 보여 줌 */
 function showBig(p) {
-  const i = INFO[p], a = acc(p);
+  const i = M(p), a = acc(p);
   document.getElementById('bigBox').innerHTML =
     '<div class="big-emoji">' + i.emoji + '</div>' +
     '<div class="big-name">' + i.name + '</div>' +
     '<div class="big-pw">' + p + ' 회원 · ' + i.animal + '</div>' +
     '<div class="big-rows">' +
       '<div class="big-row">이름 <b>' + i.name + '</b></div>' +
-      '<div class="big-row">생일 <b>' + i.birth + '</b></div>' +
-      '<div class="big-row">번호 <b>' + i.no + '</b></div>' +
+      '<div class="big-row">생일 <b>' + fmtBirth(i.birth) + '</b></div>' +
+      '<div class="big-row">번호 <b>' + p + '@@</b></div>' +
       '<div class="big-row money">남은돈 <b>' + won(a.balance) + '</b></div>' +
       '<div class="big-row">남은 출석 횟수 <b>' + countOf(p) + '회</b></div>' +
       '<div class="big-row">이번 달 출석 <b>' + monthCount(p, viewY, viewM) + '번</b></div>' +
@@ -971,16 +1005,16 @@ function monthCount(p, y, m) {
 }
 function renderLegend() {
   document.getElementById('legend').innerHTML =
-    MEMBERS.map(p => INFO[p].emoji + ' <b>' + p + ' ' + INFO[p].name + '</b>(' + INFO[p].animal + ')').join(' · ') +
+    memberList().map(p => M(p).emoji + ' <b>' + p + ' ' + M(p).name + '</b>(' + M(p).animal + ')').join(' · ') +
     '<br>표시가 있는 날 = 그 회원이 출석한 날' +
-    (viewPw ? ' · 지금은 <b>' + INFO[viewPw].name + '</b> 회원만 보는 중 (카드를 다시 누르면 모두 보기)' : '');
+    (viewPw ? ' · 지금은 <b>' + M(viewPw).name + '</b> 회원만 보는 중 (카드를 다시 누르면 모두 보기)' : '');
 }
 function render() {
   renderCards();
   renderLegend();
   showSavedInfo();
   document.getElementById('calTitle').textContent =
-    viewY + '년 ' + (viewM + 1) + '월 · ' + (viewPw ? viewPw + ' ' + INFO[viewPw].name : '모든 회원');
+    viewY + '년 ' + (viewM + 1) + '월 · ' + (viewPw ? viewPw + ' ' + M(viewPw).name : '모든 회원');
   buildCalendar(document.getElementById('calGrid'), viewY, viewM, viewPw);
 }
 
