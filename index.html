@@ -641,6 +641,7 @@
 /* ================= 자료 (관리자 사이트와 같이 씀) ================= */
 const KEY = 'arin_gym_v2';
 const BACKUP_KEY = 'arin_gym_v2_backup';                   // 같은 내용을 한 번 더 저장 (안전용)
+const HIST_KEY = 'arin_gym_v2_history';                    // 되살리기용 (관리자 모드에서 되돌릴 수 있음)
 const OLD_KEYS = ['arin_gym_v1', 'arin_boxing_club_v1'];   // 예전 기록도 그대로 가져옴
 const PRICE = 1000;                        // 1일 출석 = 1000원
 const ADMIN_PW = '0630';                   // 관리자: 그냥 들어감 (돈 안 빠짐)
@@ -721,7 +722,19 @@ function load() {
   }
   return fresh;
 }
+/* 저장할 때마다 바로 전 내용을 10개까지 보관 (관리자 모드의 '되살리기'에서 씀) */
+function pushHistory() {
+  try {
+    const before = localStorage.getItem(KEY);
+    if (!before) return;
+    const h = read(HIST_KEY) || [];
+    if (h.length && h[0].s === before) return;
+    h.unshift({ t: new Date().getTime(), s: before });
+    localStorage.setItem(HIST_KEY, JSON.stringify(h.slice(0, 10)));
+  } catch (e) {}
+}
 function save() {
+  pushHistory();
   data.updatedAt = new Date().getTime();
   const s = JSON.stringify(data);
   try {
