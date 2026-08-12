@@ -74,8 +74,14 @@
   .top-btn {
     border: none; border-radius: 999px; padding: 9px 14px; cursor: pointer;
     background: rgba(0,0,0,.3); color: #fff; font-size: 13px; font-weight: 800; font-family: inherit;
+    text-decoration: none; white-space: nowrap; display: inline-block;
   }
   .top-btn:hover { background: rgba(0,0,0,.5); }
+  @media (max-width: 430px) {
+    .topbar { flex-wrap: wrap; gap: 8px; padding: 12px 14px; }
+    .topbar h1 { font-size: 17px; }
+    .top-btn { padding: 8px 11px; font-size: 12px; }
+  }
 
   .wrap { max-width: 620px; margin: 0 auto; padding: 18px 16px 60px; }
   .card { background: #fff; border-radius: 18px; padding: 20px; box-shadow: 0 6px 18px rgba(0,0,0,.07); margin-bottom: 16px; }
@@ -319,7 +325,7 @@
       </div>
     </div>
     <div class="msg" id="lockMsg"></div>
-    <div class="lock-link" id="toWait">← 대기 화면(출석) 사이트로 가기</div>
+    <a class="lock-link" id="toWait" href="index.html">← 대기 화면(출석) 사이트로 가기</a>
   </div>
 </div>
 
@@ -328,7 +334,7 @@
   <div class="topbar">
     <div><h1 style="display:inline">💪 아린 헬스장</h1><span class="mode-tag">관리자 모드</span></div>
     <div class="top-btns">
-      <button class="top-btn" id="waitBtn">🖥 대기 화면 열기</button>
+      <a class="top-btn" id="waitBtn" href="index.html">🖥 대기 화면</a>
       <button class="top-btn" id="lockBtn">🔒 잠금</button>
     </div>
   </div>
@@ -336,7 +342,7 @@
   <div class="wrap">
     <div class="card link-card">
       <div class="t">이 사이트는 <b>대기 화면(출석 사이트)</b>과 같은 자료를 씁니다. 여기서 넣은 돈이 대기 화면에 바로 반영됩니다.</div>
-      <button class="btn" id="waitBtn2">대기 화면 열기 ↗</button>
+      <a class="btn" id="waitBtn2" href="index.html" style="text-decoration:none; display:inline-block">🖥 대기 화면으로 가기 ↗</a>
     </div>
 
     <div class="card">
@@ -651,11 +657,7 @@ function lockScreen() {
 }
 document.getElementById('lockBtn').onclick = lockScreen;
 
-/* 대기 화면으로 이동 */
-const goWait = () => { location.href = WAIT_PAGE; };
-document.getElementById('toWait').onclick = goWait;
-document.getElementById('waitBtn').onclick = goWait;
-document.getElementById('waitBtn2').onclick = goWait;
+/* 대기 화면으로 가는 버튼들은 진짜 링크(<a href="index.html">)라 항상 눌립니다 */
 
 /* ================= 소리 ================= */
 function beep() {

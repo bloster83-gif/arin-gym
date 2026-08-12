@@ -106,15 +106,21 @@
   .key.small { font-size: 15px; }
 
   .msg { color: #fff; font-weight: 800; height: 24px; margin-top: 14px; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
-  /* 오른쪽 위 회원가입 버튼 */
-  #joinBtn {
-    position: absolute; top: 16px; right: 16px; z-index: 3;
-    padding: 12px 20px; border-radius: 999px; border: 2px solid rgba(255,255,255,.5);
+  /* 위쪽 버튼들 (오른쪽=회원가입, 왼쪽=관리자 모드) */
+  #joinBtn, #adminTop {
+    position: absolute; top: 16px; z-index: 5;
+    padding: 12px 18px; border-radius: 999px; border: 2px solid rgba(255,255,255,.5);
     background: rgba(10,12,18,.55); backdrop-filter: blur(8px);
     color: #fff; font-size: 15px; font-weight: 900; font-family: inherit; cursor: pointer;
-    box-shadow: 0 6px 20px rgba(0,0,0,.45);
+    box-shadow: 0 6px 20px rgba(0,0,0,.45); text-decoration: none; white-space: nowrap;
   }
-  #joinBtn:hover { background: rgba(75,59,255,.75); }
+  #joinBtn { right: 16px; }
+  #adminTop { left: 16px; }
+  #joinBtn:hover, #adminTop:hover { background: rgba(75,59,255,.75); }
+  @media (max-width: 430px) {
+    #joinBtn, #adminTop { padding: 9px 12px; font-size: 13px; top: 10px; }
+    #joinBtn { right: 10px; } #adminTop { left: 10px; }
+  }
 
   /* 회원가입 창 */
   #join {
@@ -487,6 +493,7 @@
   </svg>
   <div class="scrim"></div>
 
+  <a id="adminTop" href="admin.html">🔐 관리자 모드</a>
   <button id="joinBtn">📝 회원가입</button>
 
   <!-- 간판 (전체화면에서도 절대 안 가려지게 그림이 아니라 글자로) -->
@@ -511,7 +518,7 @@
     </div>
   </div>
   <div class="msg" id="loginMsg"></div>
-  <div class="site-link" id="toAdmin">🔐 아린 헬스장 관리자 모드 사이트 열기 →</div>
+  <a class="site-link" id="toAdmin" href="admin.html">🔐 아린 헬스장 관리자 모드 사이트 열기 →</a>
 </div>
 
 <!-- ================= 앱 화면 ================= -->
@@ -836,9 +843,8 @@ function goHome() {
 }
 document.getElementById('closeBtn').onclick = goHome;   // 0630: X 누르면 처음 화면으로
 
-/* 관리자 모드 사이트(admin.html)로 이동 — 두 사이트가 같은 자료를 씁니다 */
+/* 관리자 모드 사이트(admin.html)로 이동 — 링크(<a href>)라 자바스크립트 없이도 됩니다 */
 const ADMIN_PAGE = 'admin.html';
-document.getElementById('toAdmin').onclick = () => { location.href = ADMIN_PAGE; };
 
 /* 관리자 모드 사이트에서 돈을 넣으면 이 화면도 바로 반영 */
 window.addEventListener('storage', e => { if (e.key === KEY) { data = load(); render(); } });
